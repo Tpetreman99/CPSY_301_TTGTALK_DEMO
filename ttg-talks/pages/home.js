@@ -3,6 +3,8 @@ import { useRouter } from 'next/router';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../lib/firebaseConfig';
 import Layout from '../components/Layout';
+import { seedDatabase } from '../lib/seedFirestore';
+
 
 export default function HomePage() {
   const router = useRouter();

@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../lib/firebaseConfig';
-import { contacts, conversations } from '../../lib/mockData';
+import { collection, addDoc, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../../lib/firebaseConfig';
+import { contacts } from '../../lib/mockData';
 import Layout from '../../components/Layout';
 
 export default function ConversationPage() {
   const router = useRouter();
   const { id } = router.query;
   const contact = contacts.find(c => c.id === id);
+  const conversationId = id ? ['lemres', id].sort().join('_'): null;
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -22,21 +24,33 @@ export default function ConversationPage() {
   }, []);
 
   useEffect(() => {
-    if (id) setMessages(conversations[id] || []);
-  }, [id]);
+    if (!conversationId) return;
+    const q = query(
+      collection(db, 'conversations', conversationId, 'messages'),
+      orderBy('createdAt', 'asc')
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMessages(msgs);
+    });
+    return unsub;
+  }, [conversationId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const send = () => {
-    if (!input.trim()) return;
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+  const send = async () => {
+    if (!input.trim() || !conversationId) return;
+    await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
       from: 'lemres',
       text: input.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }]);
+      createdAt: serverTimestamp(),
+    });
     setInput('');
   };
 

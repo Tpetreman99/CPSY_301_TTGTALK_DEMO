@@ -1,15 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebaseConfig';
-import { contacts, conversations } from '../lib/mockData';
+import { collection, getDocs } from 'firebase/firestore';
+import { auth, db } from '../lib/firebaseConfig';
+import { conversations } from '../lib/mockData';
 
 export default function Layout({ children }) {
   const router = useRouter();
+  const [contacts, setContacts] = useState([]);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      const snapshot = await getDocs(collection(db, 'users'));
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setContacts(data);
+    };
+    fetchContacts();
+  },[]);
 
   const handleSearch = (text) => {
     setSearch(text);
@@ -29,8 +44,9 @@ export default function Layout({ children }) {
     setActiveChat(contact.id);
     router.push(`/conversation/${contact.id}`);
   };
-
+  // const getLastMessage = (contactId) => '';
   const getLastMessage = (contactId) => {
+    if (!contacts || contacts.length === 0) return '';
     const msgs = conversations[contactId];
     if (!msgs || msgs.length === 0) return '';
     const last = msgs[msgs.length - 1];
@@ -40,6 +56,7 @@ export default function Layout({ children }) {
     return `${sender}: ${last.text}`;
   };
 
+  console.log(contacts);
   return (
     <div style={s.root}>
       {/* Sidebar */}
@@ -47,7 +64,7 @@ export default function Layout({ children }) {
         <div style={s.logoBox}>
           <span style={s.logoText}>TTG</span>
         </div>
-        <button style={s.iconBtn}>＋</button>
+        <button style={s.iconBtn} onClick={() => searchRef.current.focus()}>＋</button>
         <button style={s.iconBtn}>⚙</button>
         <div style={{ flex: 1 }} />
         <button style={s.iconBtn} onClick={() => signOut(auth)}>⇥</button>
@@ -57,6 +74,7 @@ export default function Layout({ children }) {
       <div style={s.chatList}>
         <div style={s.searchBar}>
           <input
+          ref={searchRef}
             style={s.searchInput}
             value={search}
             onChange={e => handleSearch(e.target.value)}
