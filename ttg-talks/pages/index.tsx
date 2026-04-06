@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, type CSSProperties, type MouseEvent } from 'react';
 import { useRouter } from 'next/router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebaseConfig';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,12 +11,22 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+
+      if (!userDoc.exists()) {
+        setError('This employee account is not set up in the system. Contact IT support.');
+        return;
+      }
+
       router.push('/home');
     } catch (error) {
       setError('Invalid credentials. Please try again or contact IT support.');
@@ -62,25 +73,30 @@ export default function LoginPage() {
   );
 }
 
-const s = {
+const s: Record<string, CSSProperties> = {
   bg: {
     minHeight: '100vh',
     backgroundColor: '#e8e8e8',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center' },
+    justifyContent: 'center'
+  },
 
   card: {
     backgroundColor: '#1a2744',
-    borderRadius: 12, padding: 40,
-    width: 420, display: 'flex',
+    borderRadius: 12,
+    padding: 40,
+    width: 420,
+    display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center' },
+    alignItems: 'center'
+  },
 
-  company:  {
+  company: {
     color: '#fff',
     fontSize: 18,
-    marginBottom: 20 },
+    marginBottom: 20
+  },
 
   logoBox: {
     width: 80,
@@ -90,22 +106,27 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 30 },
-  
+    marginBottom: 30
+  },
+
   logoText: {
     color: '#fff',
     fontSize: 22,
-    fontWeight: 'bold' },
+    fontWeight: 'bold'
+  },
 
   field: {
     width: '100%',
-    marginBottom: 16 },
+    marginBottom: 16
+  },
 
   label: {
     color: '#fff',
     marginBottom: 6,
     fontSize: 14,
-    display: 'block' },
+    display: 'block'
+  },
+
   input: {
     backgroundColor: '#8a9bbf',
     borderRadius: 6,
@@ -114,14 +135,17 @@ const s = {
     fontSize: 14,
     width: '100%',
     border: 'none',
-    boxSizing: 'border-box' },
+    boxSizing: 'border-box'
+  },
 
   error: {
     color: '#ff6b6b',
     marginBottom: 12,
-    fontSize: 13 },
+    fontSize: 13
+  },
 
-  btn: { backgroundColor: '#6b6bcc',
+  btn: {
+    backgroundColor: '#6b6bcc',
     borderRadius: 8,
     padding: '12px 48px',
     marginTop: 10,
@@ -130,5 +154,6 @@ const s = {
     fontWeight: 'bold',
     fontSize: 16,
     letterSpacing: 1,
-    cursor: 'pointer' },
+    cursor: 'pointer'
+  }
 };

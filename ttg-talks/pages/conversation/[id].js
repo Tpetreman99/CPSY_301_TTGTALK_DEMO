@@ -2,66 +2,122 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../lib/firebaseConfig';
-import { contacts, conversations } from '../../lib/mockData';
+import {
+  getConversationById,
+  getMessagesByConversationId,
+  getUserById,
+  sendMessage
+} from '../../lib/chatService';
 import Layout from '../../components/Layout';
 
 export default function ConversationPage() {
   const router = useRouter();
   const { id } = router.query;
-  const contact = contacts.find(c => c.id === id);
 
+  const [currentUser, setCurrentUser] = useState(null);
+  const [chatUser, setChatUser] = useState(null);
+  const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const bottomRef = useRef(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) router.push('/');
+      if (!user) {
+        router.push('/');
+        return;
+      }
+
+      setCurrentUser(user);
     });
+
     return unsub;
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    if (id) setMessages(conversations[id] || []);
+    async function loadMessages() {
+      if (!id) return;
+
+      const messageData = await getMessagesByConversationId(id);
+      setMessages(messageData);
+    }
+
+    loadMessages();
   }, [id]);
+
+  useEffect(() => {
+    async function loadConversation() {
+      if (!id || !currentUser) return;
+
+      const conversationData = await getConversationById(id);
+
+      if (!conversationData) return;
+
+      setConversation(conversationData);
+
+      if (conversationData.type === 'direct') {
+        const otherUserId = conversationData.memberIds.find(
+          memberId => memberId !== currentUser.uid
+        );
+
+        if (otherUserId) {
+          const otherUser = await getUserById(otherUserId);
+          setChatUser(otherUser);
+        }
+      }
+    }
+
+    loadConversation();
+  }, [id, currentUser]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const send = () => {
-    if (!input.trim()) return;
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(),
-      from: 'lemres',
-      text: input.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }]);
-    setInput('');
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+
+    const date = timestamp.toDate();
+
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  if (!contact) return null;
+  const send = async () => {
+  if (!input.trim() || !currentUser || !id) return;
+
+  await sendMessage(id, currentUser.uid, input);
+
+  const updatedMessages = await getMessagesByConversationId(id);
+  setMessages(updatedMessages);
+  setInput('');
+};
+
+  if (!conversation || !chatUser) return null;
 
   return (
     <Layout>
       <div style={s.root}>
         <div style={s.header}>
-          <span style={s.avatar}>{contact.avatar}</span>
+          <span style={s.avatar}>{chatUser.avatar}</span>
           <div>
-            <p style={s.name}>{contact.name}</p>
-            <p style={s.role}>{contact.role}</p>
+            <p style={s.name}>{chatUser.displayName}</p>
+            <p style={s.role}>{chatUser.role}</p>
           </div>
         </div>
 
         <div style={s.msgList}>
           {messages.map(msg => {
-            const isMe = msg.from === 'lemres';
+            const isMe = msg.senderId === currentUser?.uid;
+
             return (
               <div key={msg.id} style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}>
-                {!isMe && <span style={s.msgAvatar}>{contact.avatar}</span>}
+                {!isMe && <span style={s.msgAvatar}>{chatUser.avatar}</span>}
                 <div style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}>
                   <p style={s.msgText}>{msg.text}</p>
-                  <p style={s.msgTime}>{msg.time}</p>
+                  <p style={s.msgTime}>{formatMessageTime(msg.createdAt)}</p>
                 </div>
               </div>
             );
@@ -75,7 +131,7 @@ export default function ConversationPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder={`Message ${contact.name.split(' ')[0]}...`}
+            placeholder={`Message ${chatUser.displayName.split(' ')[0]}...`}
           />
           <button style={s.sendBtn} onClick={send}>Send</button>
         </div>

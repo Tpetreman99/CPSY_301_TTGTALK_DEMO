@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebaseConfig';
-import { contacts, conversations } from '../lib/mockData';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { getAllUsers, createOrGetDirectConversation } from '../lib/chatService';
+
 
 export default function Layout({ children }) {
   const router = useRouter();
@@ -11,34 +12,63 @@ export default function Layout({ children }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
 
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    async function loadUsers() {
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+    }
+
+    loadUsers();
+  }, []);
+
+  const [currentUser, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+      const unsub = onAuthStateChanged(auth, (user) => {
+        setCurrentUser(user);
+      });
+
+      return unsub;
+    }, []);
+
+
+
   const handleSearch = (text) => {
     setSearch(text);
     if (text.length > 0) {
-      setSearchResults(contacts.filter(c =>
-        c.name.toLowerCase().includes(text.toLowerCase())
-      ));
+      setSearchResults(
+        users.filter(user =>
+          user.displayName.toLowerCase().includes(text.toLowerCase())
+        ));
+
     } else {
       setSearchResults([]);
     }
   };
 
-  const openChat = (contact) => {
+  const openChat = async (contact) => {
+    if (!currentUser) return;
+
+    const conversationId = await createOrGetDirectConversation(currentUser.uid, contact.id);
+
     setSearch('');
     setSearchResults([]);
     setSearchFocused(false);
-    setActiveChat(contact.id);
-    router.push(`/conversation/${contact.id}`);
+    setActiveChat(conversationId);
+    router.push(`/conversation/${conversationId}`);
   };
 
-  const getLastMessage = (contactId) => {
-    const msgs = conversations[contactId];
-    if (!msgs || msgs.length === 0) return '';
-    const last = msgs[msgs.length - 1];
-    const sender = last.from === 'lemres'
-      ? 'You'
-      : contacts.find(c => c.id === last.from)?.name.split(' ')[0];
-    return `${sender}: ${last.text}`;
-  };
+  // const getLastMessage = (contactId) => {
+  //   const msgs = conversations[contactId];
+  //   if (!msgs || msgs.length === 0) return '';
+  //   const last = msgs[msgs.length - 1];
+  //   const sender = last.from === 'lemres'
+  //     ? 'You'
+  //     : contacts.find(c => c.id === last.from)?.displayName.split(' ')[0];
+  //   return `${sender}: ${last.text}`;
+  // };
 
   return (
     <div style={s.root}>
@@ -73,7 +103,7 @@ export default function Layout({ children }) {
               <div key={c.id} style={s.dropItem} onClick={() => openChat(c)}>
                 <span style={s.dropAvatar}>{c.avatar}</span>
                 <div>
-                  <p style={s.dropName}>{c.name}</p>
+                  <p style={s.dropName}>{c.displayName}</p>
                   <p style={s.dropRole}>{c.role}</p>
                 </div>
               </div>
@@ -81,7 +111,7 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        {contacts.map(contact => (
+        {users.map(contact => (
           <div
             key={contact.id}
             style={{ ...s.chatRow, ...(activeChat === contact.id ? s.chatRowActive : {}) }}
@@ -89,8 +119,8 @@ export default function Layout({ children }) {
           >
             <span style={s.avatar}>{contact.avatar}</span>
             <div style={s.chatInfo}>
-              <p style={s.chatName}>{contact.name}</p>
-              <p style={s.chatPreview}>{getLastMessage(contact.id)}</p>
+              <p style={s.chatName}>{contact.displayName}</p>
+              <p style={s.chatPreview}>{contact.role}</p>
             </div>
             <span style={s.dots}>•••</span>
           </div>
