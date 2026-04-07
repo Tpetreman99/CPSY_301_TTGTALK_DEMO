@@ -1,18 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../lib/firebaseConfig';
-import {
-  getConversationById,
-  getMessagesByConversationId,
-  getUserById,
-  sendMessage
-} from '../../lib/chatService';
+import { collection, addDoc, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../../lib/firebaseConfig';
+import { contacts } from '../../lib/mockData';
 import Layout from '../../components/Layout';
 
 export default function ConversationPage() {
   const router = useRouter();
   const { id } = router.query;
+  const contact = contacts.find(c => c.id === id);
+  const conversationId = id ? ['lemres', id].sort().join('_'): null;
 
   const [currentUser, setCurrentUser] = useState(null);
   const [chatUser, setChatUser] = useState(null);
@@ -35,15 +33,20 @@ export default function ConversationPage() {
   }, [router]);
 
   useEffect(() => {
-    async function loadMessages() {
-      if (!id) return;
-
-      const messageData = await getMessagesByConversationId(id);
-      setMessages(messageData);
-    }
-
-    loadMessages();
-  }, [id]);
+    if (!conversationId) return;
+    const q = query(
+      collection(db, 'conversations', conversationId, 'messages'),
+      orderBy('createdAt', 'asc')
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMessages(msgs);
+    });
+    return unsub;
+  }, [conversationId]);
 
   useEffect(() => {
     async function loadConversation() {
@@ -74,15 +77,15 @@ export default function ConversationPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const formatMessageTime = (timestamp) => {
-    if (!timestamp) return '';
-
-    const date = timestamp.toDate();
-
-    return date.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
+  const send = async () => {
+    if (!input.trim() || !conversationId) return;
+    await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
+      from: 'lemres',
+      text: input.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: serverTimestamp(),
     });
+    setInput('');
   };
 
   const send = async () => {
