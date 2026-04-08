@@ -150,6 +150,8 @@ const s = {
     flexDirection: 'column',
     flex: 1,
     overflow: 'hidden',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   header: {
     display: 'flex',
@@ -175,6 +177,7 @@ const s = {
   msgList: {
     flex: 1,
     overflowY: 'auto',
+    overflowX: 'hidden',
     padding: 16,
     display: 'flex',
     flexDirection: 'column',
@@ -184,6 +187,8 @@ const s = {
     display: 'flex',
     alignItems: 'flex-end',
     gap: 8,
+    minWidth: 0,
+    maxWidth: '100%'
   },
   msgRowMe: {
     justifyContent: 'flex-end',
@@ -192,9 +197,13 @@ const s = {
     fontSize: 24,
   },
   bubble: {
-    maxWidth: '65%',
+    maxWidth: '30%',
     borderRadius: 12,
     padding: 10,
+    wordWrap: 'break-word',
+    whiteSpace: 'pre-wrap',
+    minWidth: 0,
+    overflow: 'hidden',
   },
   bubbleThem: {
     backgroundColor: '#fff',

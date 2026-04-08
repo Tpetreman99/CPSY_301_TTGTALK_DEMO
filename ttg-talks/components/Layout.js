@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { auth } from '../lib/firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { getAllUsers, createOrGetDirectConversation } from '../lib/chatService';
-
+import logo from '../assets/images/ttglogo.png'
 
 export default function Layout({ children }) {
   const router = useRouter();
@@ -75,7 +75,9 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <div style={s.sidebar}>
         <div style={s.logoBox}>
-          <span style={s.logoText}>TTG</span>
+          <button onClick={() => router.push("../home")} style={{ background:'none', border: 'none'}}>
+          <img src={logo.src} width={70}/>
+          </button>
         </div>
         <button style={s.iconBtn}>＋</button>
         <button style={s.iconBtn}>⚙</button>
@@ -143,6 +145,8 @@ const s = {
   root: {
     display: 'flex',
     height: '100vh',
+    width: '100%',
+    overflow: 'hidden',
     backgroundColor: '#f0f2f8',
   },
   sidebar: {
@@ -151,14 +155,14 @@ const s = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '16px 0',
+    padding: '16px',
     gap: 16,
   },
   logoBox: {
+    paddingTop: 20,
+    paddingBottom: 20,
     width: 48,
     height: 48,
-    borderRadius: 24,
-    border: '2px solid #fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -172,7 +176,7 @@ const s = {
     background: 'none',
     border: 'none',
     color: '#fff',
-    fontSize: 22,
+    fontSize: 50,
     cursor: 'pointer',
   },
   chatList: {
@@ -270,5 +274,7 @@ const s = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
+    overflow: 'hidden',
+    minWidth: 0,
   },
 };
