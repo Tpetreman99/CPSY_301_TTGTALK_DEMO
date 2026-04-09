@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { getAllUsers, createOrGetDirectConversation } from '../lib/chatService';
+import { getAllUsers, createOrGetDirectConversation, subscribeToConversationPreviews } from '../lib/chatService';
 import logo from '../assets/images/ttglogo.png'
 
 export default function Layout({ children }) {
@@ -11,9 +11,8 @@ export default function Layout({ children }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
-
+  const[lastMessages, setLastMessages] = useState({});
   const [users, setUsers] = useState([]);
-
   useEffect(() => {
     async function loadUsers() {
       const allUsers = await getAllUsers();
@@ -33,6 +32,16 @@ export default function Layout({ children }) {
       return unsub;
     }, []);
 
+    // load preview of chat that shows most recent message
+    useEffect(() => {
+      if (!currentUser) return;
+    
+      const unsubscribe = subscribeToConversationPreviews(currentUser.uid, (previews) => {
+        setLastMessages(previews);
+      });
+    
+      return () => unsubscribe();
+    }, [currentUser]);
 
 
   const handleSearch = (text) => {
@@ -60,15 +69,6 @@ export default function Layout({ children }) {
     router.push(`/conversation/${conversationId}`);
   };
 
-  // const getLastMessage = (contactId) => {
-  //   const msgs = conversations[contactId];
-  //   if (!msgs || msgs.length === 0) return '';
-  //   const last = msgs[msgs.length - 1];
-  //   const sender = last.from === 'lemres'
-  //     ? 'You'
-  //     : contacts.find(c => c.id === last.from)?.displayName.split(' ')[0];
-  //   return `${sender}: ${last.text}`;
-  // };
 
   return (
     <div style={s.root}>
@@ -122,7 +122,8 @@ export default function Layout({ children }) {
             <span style={s.avatar}>{contact.avatar}</span>
             <div style={s.chatInfo}>
               <p style={s.chatName}>{contact.displayName}</p>
-              <p style={s.chatPreview}>{contact.role}</p>
+              <p style={s.chatPreview}>
+                {lastMessages[contact.id] || contact.role}</p>
             </div>
             <span style={s.dots}>•••</span>
           </div>

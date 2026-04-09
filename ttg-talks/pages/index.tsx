@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebaseConfig';
+import logo from '../assets/images/ttglogo.png';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,8 +40,8 @@ export default function LoginPage() {
     <div style={s.bg}>
       <div style={s.card}>
         <p style={s.company}>Tartigrade Limited</p>
-        <div style={s.logoBox}>
-          <span style={s.logoText}>TTG</span>
+        <div>
+        <img src={logo.src} width={100}/>
         </div>
 
         <div style={s.field}>

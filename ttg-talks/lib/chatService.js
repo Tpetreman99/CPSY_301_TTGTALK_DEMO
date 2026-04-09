@@ -8,7 +8,8 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-  where
+  where,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
@@ -106,4 +107,32 @@ export async function getUserById(userId) {
     id: snapshot.id,
     ...snapshot.data(),
   };
+}
+
+// get most recent message from user ID 
+export async function getConversationsByUserId(userId) {
+  const q = query(
+    collection(db, 'conversations'),
+    where('memberIds', 'array-contains', userId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export function subscribeToConversationPreviews(userId, callback) {
+  const q = query(
+    collection(db, 'conversations'),
+    where('memberIds', 'array-contains', userId)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const previews = {};
+    snapshot.docs.forEach(doc => {
+      const convo = doc.data();
+      const otherUserId = convo.memberIds.find(id => id !== userId);
+      if (!otherUserId || !convo.lastMessageText) return;
+      previews[otherUserId] = convo.lastMessageText;
+    });
+    callback(previews);
+  });
 }
