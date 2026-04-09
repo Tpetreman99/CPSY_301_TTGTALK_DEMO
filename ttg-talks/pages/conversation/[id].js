@@ -131,7 +131,7 @@ export default function ConversationPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder={`Message ${chatUser.displayName.split(' ')[0]}...`}
+            placeholder={`Message ${chatUser.displayName.split(' ')[0]}`}
           />
           <button style={s.sendBtn} onClick={send}>Send</button>
         </div>

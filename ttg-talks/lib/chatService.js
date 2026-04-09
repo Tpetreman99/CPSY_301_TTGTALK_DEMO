@@ -119,6 +119,8 @@ export async function getConversationsByUserId(userId) {
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+// keeps mesage previews up to date without needing toi refresh the page, this will also help with
+// keeping the  most recent messages at the top
 export function subscribeToConversationPreviews(userId, callback) {
   const q = query(
     collection(db, 'conversations'),
@@ -126,13 +128,25 @@ export function subscribeToConversationPreviews(userId, callback) {
   );
 
   return onSnapshot(q, (snapshot) => {
-    const previews = {};
-    snapshot.docs.forEach(doc => {
-      const convo = doc.data();
-      const otherUserId = convo.memberIds.find(id => id !== userId);
-      if (!otherUserId || !convo.lastMessageText) return;
-      previews[otherUserId] = convo.lastMessageText;
+    const results = [];
+
+    snapshot.docs.forEach((document) => {
+      const data = document.data();
+      const otherUserId = data.memberIds.find((id) => id !== userId);
+      if (!otherUserId) return;
+      results.push({
+        otherUserId,
+        lastMessageText: data.lastMessageText || '',
+        lastMessageAt: data.lastMessageAt,
+      });
     });
-    callback(previews);
+
+    results.sort((a, b) => {
+      if (!a.lastMessageAt) return 1;
+      if (!b.lastMessageAt) return -1;
+      return b.lastMessageAt.toMillis() - a.lastMessageAt.toMillis();
+    });
+
+    callback(results);
   });
 }

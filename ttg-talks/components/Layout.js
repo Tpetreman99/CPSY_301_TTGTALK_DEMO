@@ -11,38 +11,36 @@ export default function Layout({ children }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
-  const[lastMessages, setLastMessages] = useState({});
+  const [conversations, setConversations] = useState([]);
   const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showNewChat, setShowNewChat] = useState(false);
+
+
   useEffect(() => {
     async function loadUsers() {
       const allUsers = await getAllUsers();
       setUsers(allUsers);
     }
-
     loadUsers();
   }, []);
 
-  const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return unsub;
+  }, []);
 
-    useEffect(() => {
-      const unsub = onAuthStateChanged(auth, (user) => {
-        setCurrentUser(user);
-      });
+  useEffect(() => {
+    if (!currentUser) return;
 
-      return unsub;
-    }, []);
+    const unsubscribe = subscribeToConversationPreviews(currentUser.uid, (convos) => {
+      setConversations(convos);
+    });
 
-    // load preview of chat that shows most recent message
-    useEffect(() => {
-      if (!currentUser) return;
-    
-      const unsubscribe = subscribeToConversationPreviews(currentUser.uid, (previews) => {
-        setLastMessages(previews);
-      });
-    
-      return () => unsubscribe();
-    }, [currentUser]);
-
+    return () => unsubscribe();
+  }, [currentUser]);
 
   const handleSearch = (text) => {
     setSearch(text);
@@ -51,7 +49,6 @@ export default function Layout({ children }) {
         users.filter(user =>
           user.displayName.toLowerCase().includes(text.toLowerCase())
         ));
-
     } else {
       setSearchResults([]);
     }
@@ -60,26 +57,29 @@ export default function Layout({ children }) {
   const openChat = async (contact) => {
     if (!currentUser) return;
 
+    try {
     const conversationId = await createOrGetDirectConversation(currentUser.uid, contact.id);
 
     setSearch('');
     setSearchResults([]);
     setSearchFocused(false);
-    setActiveChat(conversationId);
+    setActiveChat(contact.id);
     router.push(`/conversation/${conversationId}`);
+  } catch (err) {
+    console.error('Failed to open chat', err);
+  }
   };
-
 
   return (
     <div style={s.root}>
       {/* Sidebar */}
       <div style={s.sidebar}>
         <div style={s.logoBox}>
-          <button onClick={() => router.push("../home")} style={{ background:'none', border: 'none'}}>
-          <img src={logo.src} width={70}/>
+          <button onClick={() => router.push("../home")} style={{ background: 'none', border: 'none' }}>
+            <img src={logo.src} width={70} />
           </button>
         </div>
-        <button style={s.iconBtn}>＋</button>
+        <button style={s.iconBtn} onClick={() => setShowNewChat(true)}>＋</button>
         <button style={s.iconBtn}>⚙</button>
         <div style={{ flex: 1 }} />
         <button style={s.iconBtn} onClick={() => signOut(auth)}>⇥</button>
@@ -113,27 +113,32 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        {users.map(contact => (
-          <div
-            key={contact.id}
-            style={{ ...s.chatRow, ...(activeChat === contact.id ? s.chatRowActive : {}) }}
-            onClick={() => openChat(contact)}
-          >
-            <span style={s.avatar}>{contact.avatar}</span>
-            <div style={s.chatInfo}>
-              <p style={s.chatName}>{contact.displayName}</p>
-              <p style={s.chatPreview}>
-                {lastMessages[contact.id] || contact.role}</p>
+        {conversations.map(convo => {
+          const contact = users.find(u => u.id === convo.otherUserId);
+          if (!contact) return null;
+
+          return (
+            <div
+              key={convo.otherUserId}
+              style={{ ...s.chatRow, ...(activeChat === contact.id ? s.chatRowActive : {}) }}
+              onClick={() => openChat(contact)}
+            >
+              <span style={s.avatar}>{contact.avatar}</span>
+              <div style={s.chatInfo}>
+                <p style={s.chatName}>{contact.displayName}</p>
+                <p style={s.chatPreview}>{convo.lastMessageText || contact.role}</p>
+              </div>
+              <span style={s.dots}>•••</span>
             </div>
-            <span style={s.dots}>•••</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Page content slots in here */}
+      {/* Page content */}
       <div style={s.main}>
         {children}
       </div>
+      
     </div>
   );
 }
