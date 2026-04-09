@@ -1,17 +1,47 @@
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../lib/firebaseConfig';
-import Layout from '../components/Layout';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+
+import Layout from "../components/Layout";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "../lib/firebaseConfig";
 
 export default function HomePage() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) router.push('/');
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      console.log("Auth listener user:", currentUser);
+      if (!currentUser) {
+        router.push("/");
+      } else {
+        setUser(currentUser);
+      }
     });
     return unsub;
+  }, [router]);
+
+  const createTestChat = async () => {
+    if (!user || !user.uid) {
+      console.log("User not ready yet");
+      return;
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, "chats"), {
+        participants: [user.uid, "test-user"],
+        createdAt: serverTimestamp(),
+      });
+      console.log("Chat created with ID:", docRef.id);
+      router.push(`/conversation/${docRef.id}`);
+    } catch (err) {
+      console.error("Failed to create chat:", err);
+    }
+  };
+
+  useEffect(() => {
+    console.log("Firestore db object:", db);
   }, []);
 
   return (
@@ -19,30 +49,44 @@ export default function HomePage() {
       <div style={s.header}>
         <h1 style={s.headerTitle}>TTG TALKS</h1>
       </div>
+
       <div style={s.welcome}>
         <h2 style={s.welcomeTitle}>Welcome back!</h2>
         <p style={s.welcomeSub}>You have 28 unread messages</p>
+
         <div style={s.actions}>
           <div style={s.actionBtn}>
             <span style={s.actionIcon}>＋</span>
             <span style={s.actionLabel}>Create chat</span>
           </div>
+
           <div style={s.actionBtn}>
             <span style={s.actionIcon}>⚙</span>
             <span style={s.actionLabel}>Settings</span>
           </div>
+
           <div style={s.actionBtn} onClick={() => signOut(auth)}>
             <span style={s.actionIcon}>⇥</span>
             <span style={s.actionLabel}>Log out</span>
           </div>
         </div>
+
+        <button
+          onClick={async () => {
+            console.log("Clicked create chat, currentUser:", user);
+            await createTestChat();
+          }}
+        >
+          Create Chat
+        </button>
       </div>
     </Layout>
   );
 }
 
-const ACCENT = '#7b7fd4';
-const GREEN = '#5a9e5a';
+// Colors and styles
+const ACCENT = "#7b7fd4";
+const GREEN = "#5a9e5a";
 
 const s = {
   header: {
@@ -50,22 +94,22 @@ const s = {
     padding: 16,
   },
   headerTitle: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     margin: 0,
   },
   welcome: {
     flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
   },
   welcomeTitle: {
     fontSize: 40,
     color: ACCENT,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     marginBottom: 8,
   },
   welcomeSub: {
@@ -74,20 +118,20 @@ const s = {
     marginBottom: 48,
   },
   actions: {
-    display: 'flex',
+    display: "flex",
     gap: 24,
   },
   actionBtn: {
     width: 140,
     height: 140,
-    backgroundColor: '#e8eaf6',
+    backgroundColor: "#e8eaf6",
     borderRadius: 12,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 12,
-    cursor: 'pointer',
+    cursor: "pointer",
   },
   actionIcon: {
     fontSize: 40,

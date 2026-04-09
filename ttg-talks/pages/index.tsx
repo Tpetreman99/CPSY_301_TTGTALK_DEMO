@@ -1,24 +1,36 @@
-import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebaseConfig';
+import { useState } from "react";
+import { useRouter } from "next/router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../lib/firebaseConfig";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  const handleSignup = async () => {
+    try {
+      await createUserWithEmailAndPassword(auth, "test@test.com", "123456");
+      console.log("User created!");
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push('/home');
+      router.push("/home");
     } catch (error) {
-      setError('Invalid credentials. Please try again or contact IT support.');
+      setError("Invalid credentials. Please try again or contact IT support.");
     } finally {
       setLoading(false);
     }
@@ -37,7 +49,7 @@ export default function LoginPage() {
           <input
             style={s.input}
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             autoCapitalize="none"
           />
         </div>
@@ -48,14 +60,18 @@ export default function LoginPage() {
             style={s.input}
             type="password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
           />
         </div>
 
         {error && <p style={s.error}>{error}</p>}
 
         <button style={s.btn} onClick={handleLogin} disabled={loading}>
-          {loading ? 'Logging in...' : 'LOGIN'}
+          {loading ? "Logging in..." : "LOGIN"}
+        </button>
+
+        <button onClick={handleSignup} style={{ marginTop: 10 }}>
+          Create Test User
         </button>
       </div>
     </div>
@@ -64,71 +80,84 @@ export default function LoginPage() {
 
 const s = {
   bg: {
-    minHeight: '100vh',
-    backgroundColor: '#e8e8e8',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center' },
+    minHeight: "100vh",
+    backgroundColor: "#e8e8e8",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   card: {
-    backgroundColor: '#1a2744',
-    borderRadius: 12, padding: 40,
-    width: 420, display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center' },
+    backgroundColor: "#1a2744",
+    borderRadius: 12,
+    padding: 40,
+    width: 420,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  },
 
-  company:  {
-    color: '#fff',
+  company: {
+    color: "#fff",
     fontSize: 18,
-    marginBottom: 20 },
+    marginBottom: 20,
+  },
 
   logoBox: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    border: '2px solid #fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 30 },
-  
+    border: "2px solid #fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 30,
+  },
+
   logoText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 22,
-    fontWeight: 'bold' },
+    fontWeight: "bold",
+  },
 
   field: {
-    width: '100%',
-    marginBottom: 16 },
+    width: "100%",
+    marginBottom: 16,
+  },
 
   label: {
-    color: '#fff',
+    color: "#fff",
     marginBottom: 6,
     fontSize: 14,
-    display: 'block' },
+    display: "block",
+  },
   input: {
-    backgroundColor: '#8a9bbf',
+    backgroundColor: "#8a9bbf",
     borderRadius: 6,
     padding: 10,
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    width: '100%',
-    border: 'none',
-    boxSizing: 'border-box' },
+    width: "100%",
+    border: "none",
+    boxSizing: "border-box",
+  },
 
   error: {
-    color: '#ff6b6b',
+    color: "#ff6b6b",
     marginBottom: 12,
-    fontSize: 13 },
+    fontSize: 13,
+  },
 
-  btn: { backgroundColor: '#6b6bcc',
+  btn: {
+    backgroundColor: "#6b6bcc",
     borderRadius: 8,
-    padding: '12px 48px',
+    padding: "12px 48px",
     marginTop: 10,
-    border: 'none',
-    color: '#fff',
-    fontWeight: 'bold',
+    border: "none",
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 16,
     letterSpacing: 1,
-    cursor: 'pointer' },
+    cursor: "pointer",
+  },
 };
