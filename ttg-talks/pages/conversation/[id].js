@@ -68,7 +68,7 @@ export default function ConversationPage() {
     }
 
     loadConversation();
-  }, [id, currentUser]);
+  }, [id, currentUser, messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
