@@ -1,0 +1,21 @@
+{
+  "name": "cpsy_301_ttgtalk_demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tpetreman99/CPSY_301_TTGTALK_DEMO.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Tpetreman99/CPSY_301_TTGTALK_DEMO/issues"
+  },
+  "homepage": "https://github.com/Tpetreman99/CPSY_301_TTGTALK_DEMO#readme"
+}
