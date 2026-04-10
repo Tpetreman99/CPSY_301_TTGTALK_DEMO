@@ -4,6 +4,7 @@ import { auth } from '../lib/firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { getAllUsers, createOrGetDirectConversation, subscribeToConversationPreviews } from '../lib/chatService';
 import logo from '../assets/images/ttglogo.png'
+import NewChatModal from '../components/NewChatModal';
 
 export default function Layout({ children }) {
   const router = useRouter();
@@ -34,11 +35,12 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     if (!currentUser) return;
-
+  
     const unsubscribe = subscribeToConversationPreviews(currentUser.uid, (convos) => {
+      console.log('convos from subscription:', convos);
       setConversations(convos);
     });
-
+  
     return () => unsubscribe();
   }, [currentUser]);
 
@@ -54,20 +56,27 @@ export default function Layout({ children }) {
     }
   };
 
-  const openChat = async (contact) => {
+  const openChat = async (contactOrId, type) => {
+    console.log('openChat called:', contactOrId, 'type:', type);
     if (!currentUser) return;
 
     try {
-    const conversationId = await createOrGetDirectConversation(currentUser.uid, contact.id);
+      let conversationId;
 
-    setSearch('');
-    setSearchResults([]);
-    setSearchFocused(false);
-    setActiveChat(contact.id);
-    router.push(`/conversation/${conversationId}`);
-  } catch (err) {
-    console.error('Failed to open chat', err);
-  }
+      if (type === 'group') {
+        conversationId = contactOrId;
+      } else {
+        conversationId = await createOrGetDirectConversation(currentUser.uid, contactOrId.id);
+        setActiveChat(contactOrId.id);
+      }
+
+      setSearch('');
+      setSearchResults([]);
+      setSearchFocused(false);
+      router.push(`/conversation/${conversationId}`);
+    } catch (err) {
+      console.error('Failed to open chat', err);
+    }
   };
 
   return (
@@ -113,20 +122,46 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        {conversations.map(convo => {
+          {conversations.map(convo => {
+            if (convo.type === 'group') {
+              const memberNames = convo.memberIds
+                .filter(id => id !== currentUser?.uid)
+                .map(id => {
+                  const user = users.find(u => u.id === id);
+                  return user ? user.displayName : '';
+                })
+                .filter(Boolean)
+                .join(', ');
+            
+              return (
+                <div
+                  key={convo.conversationId}
+                  style={s.chatRow}
+                  onClick={() => router.push(`/conversation/${convo.conversationId}`)}
+                >
+                  <span style={s.avatar}>👥</span>
+                  <div style={s.chatInfo}>
+                    <p style={s.chatName}>{memberNames || 'Group chat'}</p>
+                    <p style={s.chatPreview}>{convo.lastMessageText}</p>
+                  </div>
+                  <span style={s.dots}>•••</span>
+                </div>
+              );
+            }
+
           const contact = users.find(u => u.id === convo.otherUserId);
           if (!contact) return null;
 
           return (
             <div
-              key={convo.otherUserId}
+              key={convo.conversationId}
               style={{ ...s.chatRow, ...(activeChat === contact.id ? s.chatRowActive : {}) }}
               onClick={() => openChat(contact)}
             >
               <span style={s.avatar}>{contact.avatar}</span>
               <div style={s.chatInfo}>
                 <p style={s.chatName}>{contact.displayName}</p>
-                <p style={s.chatPreview}>{convo.lastMessageText || contact.role}</p>
+                <p style={s.chatPreview}>{convo.lastMessageText}</p>
               </div>
               <span style={s.dots}>•••</span>
             </div>
@@ -138,7 +173,15 @@ export default function Layout({ children }) {
       <div style={s.main}>
         {children}
       </div>
-      
+      {/* create a chat modal pop up */}
+      {showNewChat && (
+        <NewChatModal
+          users={users}
+          currentUser={currentUser}
+          onClose={() => setShowNewChat(false)}
+          onOpenChat={openChat}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import {
   addDoc,
+  setDoc,
   collection,
   doc,
   getDoc,
@@ -119,7 +120,7 @@ export async function getConversationsByUserId(userId) {
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// keeps mesage previews up to date without needing toi refresh the page, this will also help with
+// keeps mesage previews up to date without needing to refresh the page, this will also help with
 // keeping the  most recent messages at the top
 export function subscribeToConversationPreviews(userId, callback) {
   const q = query(
@@ -132,13 +133,26 @@ export function subscribeToConversationPreviews(userId, callback) {
 
     snapshot.docs.forEach((document) => {
       const data = document.data();
-      const otherUserId = data.memberIds.find((id) => id !== userId);
-      if (!otherUserId) return;
-      results.push({
-        otherUserId,
-        lastMessageText: data.lastMessageText || '',
-        lastMessageAt: data.lastMessageAt,
-      });
+
+      if (data.type === 'group') {
+        results.push({
+          conversationId: document.id,
+          type: 'group',
+          memberIds: data.memberIds,
+          lastMessageText: data.lastMessageText || '',
+          lastMessageAt: data.lastMessageAt,
+        });
+      } else {
+        const otherUserId = data.memberIds.find((id) => id !== userId);
+        if (!otherUserId) return;
+        results.push({
+          conversationId: document.id,
+          type: 'direct',
+          otherUserId,
+          lastMessageText: data.lastMessageText || '',
+          lastMessageAt: data.lastMessageAt,
+        });
+      }
     });
 
     results.sort((a, b) => {
@@ -149,4 +163,32 @@ export function subscribeToConversationPreviews(userId, callback) {
 
     callback(results);
   });
+}
+
+
+// group chat creation
+export async function createGroupConversation(memberIds, createdBy) {
+  const sortedIds = [...memberIds].sort();
+
+  // create a deterministic document ID from the member IDs
+  const conversationId = 'group_' + sortedIds.join('_');
+
+  const docRef = doc(db, 'conversations', conversationId);
+  const existing = await getDoc(docRef);
+
+  if (existing.exists()) {
+    return conversationId;
+  }
+
+  await setDoc(docRef, {
+    type: 'group',
+    memberIds: sortedIds,
+    createdBy,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastMessageText: '',
+    lastMessageAt: null,
+  });
+
+  return conversationId;
 }

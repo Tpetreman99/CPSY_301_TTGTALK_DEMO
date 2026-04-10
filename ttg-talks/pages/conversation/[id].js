@@ -20,6 +20,7 @@ export default function ConversationPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const bottomRef = useRef(null);
+  const [groupMembers, setGroupMembers] = useState([]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -50,7 +51,6 @@ export default function ConversationPage() {
       if (!id || !currentUser) return;
 
       const conversationData = await getConversationById(id);
-
       if (!conversationData) return;
 
       setConversation(conversationData);
@@ -59,11 +59,17 @@ export default function ConversationPage() {
         const otherUserId = conversationData.memberIds.find(
           memberId => memberId !== currentUser.uid
         );
-
         if (otherUserId) {
           const otherUser = await getUserById(otherUserId);
           setChatUser(otherUser);
         }
+      } else if (conversationData.type === 'group') {
+        const members = await Promise.all(
+          conversationData.memberIds
+            .filter(memberId => memberId !== currentUser.uid)
+            .map(memberId => getUserById(memberId))
+        );
+        setGroupMembers(members);
       }
     }
 
@@ -86,26 +92,41 @@ export default function ConversationPage() {
   };
 
   const send = async () => {
-  if (!input.trim() || !currentUser || !id) return;
+    if (!input.trim() || !currentUser || !id) return;
 
-  await sendMessage(id, currentUser.uid, input);
+    await sendMessage(id, currentUser.uid, input);
 
-  const updatedMessages = await getMessagesByConversationId(id);
-  setMessages(updatedMessages);
-  setInput('');
-};
+    const updatedMessages = await getMessagesByConversationId(id);
+    setMessages(updatedMessages);
+    setInput('');
+  };
 
-  if (!conversation || !chatUser) return null;
+  if (!conversation) return null;
+  if (conversation.type === 'direct' && !chatUser) return null;
 
   return (
     <Layout>
       <div style={s.root}>
         <div style={s.header}>
-          <span style={s.avatar}>{chatUser.avatar}</span>
-          <div>
-            <p style={s.name}>{chatUser.displayName}</p>
-            <p style={s.role}>{chatUser.role}</p>
-          </div>
+          {conversation.type === 'group' ? (
+            <>
+              <span style={s.avatar}>👥</span>
+              <div>
+                <p style={s.name}>
+                  {groupMembers.map(m => m.displayName).join(', ')}
+                </p>
+                <p style={s.role}>{conversation.memberIds.length} members</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <span style={s.avatar}>{chatUser.avatar}</span>
+              <div>
+                <p style={s.name}>{chatUser.displayName}</p>
+                <p style={s.role}>{chatUser.role}</p>
+              </div>
+            </>
+          )}
         </div>
 
         <div style={s.msgList}>
@@ -113,8 +134,15 @@ export default function ConversationPage() {
             const isMe = msg.senderId === currentUser?.uid;
 
             return (
-              <div key={msg.id} style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}>
-                {!isMe && <span style={s.msgAvatar}>{chatUser.avatar}</span>}
+              <div
+                key={msg.id}
+                style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}
+              >
+                {!isMe && (
+                  <span style={s.msgAvatar}>
+                    {conversation.type === 'group' ? '👤' : chatUser.avatar}
+                  </span>
+                )}
                 <div style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}>
                   <p style={s.msgText}>{msg.text}</p>
                   <p style={s.msgTime}>{formatMessageTime(msg.createdAt)}</p>
@@ -131,7 +159,11 @@ export default function ConversationPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder={`Message ${chatUser.displayName.split(' ')[0]}`}
+            placeholder={
+              conversation.type === 'group'
+                ? 'Message group'
+                : `Message ${chatUser.displayName.split(' ')[0]}`
+            }
           />
           <button style={s.sendBtn} onClick={send}>Send</button>
         </div>
@@ -188,7 +220,7 @@ const s = {
     alignItems: 'flex-end',
     gap: 8,
     minWidth: 0,
-    maxWidth: '100%'
+    maxWidth: '100%',
   },
   msgRowMe: {
     justifyContent: 'flex-end',
