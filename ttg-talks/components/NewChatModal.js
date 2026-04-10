@@ -23,19 +23,6 @@ export default function NewChatModal({ users, currentUser, onClose, onOpenChat }
 
   const isSelected = (user) => selected.some(u => u.id === user.id);
 
-  // const handleStart = async () => {
-  //   if (selected.length === 1) {
-  //     onOpenChat(selected[0]);
-  //   } else if (selected.length > 1) {
-  //     const memberIds = [
-  //       currentUser.uid,
-  //       ...selected.map(u => u.id),
-  //     ];
-  //     const conversationId = await createGroupConversation(memberIds, currentUser.uid);
-  //     onOpenChat(conversationId, 'group');
-  //   }
-  //   onClose();
-  // };
   const handleStart = async () => {
     console.log('selected:', selected);
     console.log('selected.length:', selected.length);
@@ -56,7 +43,7 @@ export default function NewChatModal({ users, currentUser, onClose, onOpenChat }
     }
     onClose();
   };
-  
+
   return (
     <div
       style={s.overlay}

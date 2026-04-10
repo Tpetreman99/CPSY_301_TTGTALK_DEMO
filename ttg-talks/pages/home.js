@@ -1,18 +1,53 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../lib/firebaseConfig';
+import { getAllUsers, createOrGetDirectConversation } from '../lib/chatService';
 import Layout from '../components/Layout';
+import NewChatModal from '../components/NewChatModal';
 
 export default function HomePage() {
   const router = useRouter();
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) router.push('/');
+      if (!user) {
+        router.push('/');
+        return;
+      }
+      setCurrentUser(user);
     });
     return unsub;
   }, []);
+
+  useEffect(() => {
+    async function loadUsers() {
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+    }
+    loadUsers();
+  }, []);
+
+  const openChat = async (contactOrId, type) => {
+    if (!currentUser) return;
+
+    try {
+      let conversationId;
+
+      if (type === 'group') {
+        conversationId = contactOrId;
+      } else {
+        conversationId = await createOrGetDirectConversation(currentUser.uid, contactOrId.id);
+      }
+
+      router.push(`/conversation/${conversationId}`);
+    } catch (err) {
+      console.error('Failed to open chat', err);
+    }
+  };
 
   return (
     <Layout>
@@ -23,7 +58,7 @@ export default function HomePage() {
         <h2 style={s.welcomeTitle}>Welcome back!</h2>
         <p style={s.welcomeSub}>You have 28 unread messages</p>
         <div style={s.actions}>
-          <div style={s.actionBtn}>
+          <div style={s.actionBtn} onClick={() => setShowNewChat(true)}>
             <span style={s.actionIcon}>＋</span>
             <span style={s.actionLabel}>Create chat</span>
           </div>
@@ -37,6 +72,15 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {showNewChat && (
+        <NewChatModal
+          users={users}
+          currentUser={currentUser}
+          onClose={() => setShowNewChat(false)}
+          onOpenChat={openChat}
+        />
+      )}
     </Layout>
   );
 }
