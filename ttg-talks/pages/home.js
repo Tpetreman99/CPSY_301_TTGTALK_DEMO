@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-
+import { auth } from "../lib/firebaseConfig";
 import Layout from "../components/Layout";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "../lib/firebaseConfig";
+import NewChatModal from "../components/NewChatModal";
+import { getAllUsers, createOrGetDirectConversation } from "../lib/chatService";
 
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
-      console.log("Auth listener user:", currentUser);
       if (!currentUser) {
         router.push("/");
       } else {
@@ -20,29 +22,26 @@ export default function HomePage() {
       }
     });
     return unsub;
-  }, [router]);
-
-  const createTestChat = async () => {
-    if (!user || !user.uid) {
-      console.log("User not ready yet");
-      return;
-    }
-
-    try {
-      const docRef = await addDoc(collection(db, "chats"), {
-        participants: [user.uid, "test-user"],
-        createdAt: serverTimestamp(),
-      });
-      console.log("Chat created with ID:", docRef.id);
-      router.push(`/conversation/${docRef.id}`);
-    } catch (err) {
-      console.error("Failed to create chat:", err);
-    }
-  };
+  }, []);
 
   useEffect(() => {
-    console.log("Firestore db object:", db);
+    getAllUsers().then(setUsers);
   }, []);
+
+  const openChat = async (contactOrId, type) => {
+    try {
+      let conversationId;
+      if (type === "group") {
+        conversationId = contactOrId;
+      } else {
+        conversationId = await createOrGetDirectConversation(user.uid, contactOrId.id);
+      }
+      router.push(`/conversation/${conversationId}`);
+    } catch (err) {
+      console.error("Failed to open chat", err);
+      alert("Could not open chat: " + err.message);
+    }
+  };
 
   return (
     <Layout>
@@ -55,36 +54,52 @@ export default function HomePage() {
         <p style={s.welcomeSub}>You have 28 unread messages</p>
 
         <div style={s.actions}>
-          <div style={s.actionBtn}>
+          <div style={s.actionBtn} onClick={() => setShowNewChat(true)}>
             <span style={s.actionIcon}>＋</span>
             <span style={s.actionLabel}>Create chat</span>
           </div>
 
-          <div style={s.actionBtn}>
+          <div style={s.actionBtn} onClick={() => router.push('/settings')}>
             <span style={s.actionIcon}>⚙</span>
             <span style={s.actionLabel}>Settings</span>
           </div>
 
-          <div style={s.actionBtn} onClick={() => signOut(auth)}>
+          <div style={s.actionBtn} onClick={() => setShowLogoutConfirm(true)}>
             <span style={s.actionIcon}>⇥</span>
             <span style={s.actionLabel}>Log out</span>
           </div>
         </div>
-
-        <button
-          onClick={async () => {
-            console.log("Clicked create chat, currentUser:", user);
-            await createTestChat();
-          }}
-        >
-          Create Chat
-        </button>
       </div>
+
+      {showLogoutConfirm && (
+        <div style={s.overlay} onClick={() => setShowLogoutConfirm(false)}>
+          <div style={s.confirmModal} onClick={(e) => e.stopPropagation()}>
+            <h3 style={s.confirmTitle}>Log out</h3>
+            <p style={s.confirmText}>Are you sure you want to log out?</p>
+            <div style={s.confirmActions}>
+              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>
+                Cancel
+              </button>
+              <button style={s.logoutBtn} onClick={() => signOut(auth)}>
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNewChat && (
+        <NewChatModal
+          users={users}
+          currentUser={user}
+          onClose={() => setShowNewChat(false)}
+          onOpenChat={openChat}
+        />
+      )}
     </Layout>
   );
 }
 
-// Colors and styles
 const ACCENT = "#7b7fd4";
 const GREEN = "#5a9e5a";
 
@@ -140,5 +155,61 @@ const s = {
   actionLabel: {
     color: ACCENT,
     fontSize: 16,
+  },
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 200,
+  },
+  confirmModal: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 32,
+    width: 320,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
+  },
+  confirmTitle: {
+    margin: 0,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a2744',
+  },
+  confirmText: {
+    margin: 0,
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+  },
+  confirmActions: {
+    display: 'flex',
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelBtn: {
+    padding: '10px 24px',
+    borderRadius: 8,
+    border: '1px solid #ccc',
+    backgroundColor: '#fff',
+    fontSize: 14,
+    cursor: 'pointer',
+    color: '#333',
+  },
+  logoutBtn: {
+    padding: '10px 24px',
+    borderRadius: 8,
+    border: 'none',
+    backgroundColor: '#d93025',
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    cursor: 'pointer',
   },
 };

@@ -1,20 +1,19 @@
-"use client";
-
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../lib/firebaseConfig";
-
-import {
-  addDoc,
-  collection,
-  serverTimestamp,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-
 import Layout from "../../components/Layout";
+import { useSettings } from "../../lib/SettingsContext";
+import {
+  getAllUsers,
+  sendMessage,
+  addMemberToConversation,
+  removeMemberFromConversation,
+  subscribeToMessages,
+  deleteMessage,
+  editMessage,
+} from "../../lib/chatService";
 
 export default function ConversationPage() {
   const router = useRouter();
@@ -23,98 +22,277 @@ export default function ConversationPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [user, setUser] = useState(null);
+  const [conversation, setConversation] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [headerOpen, setHeaderOpen] = useState(false);
+  const [addSearch, setAddSearch] = useState("");
+  const [menuMsgId, setMenuMsgId] = useState(null);
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editText, setEditText] = useState("");
 
+  const { enterToSend } = useSettings();
   const bottomRef = useRef(null);
 
-  // ✅ AUTH CHECK
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) router.push("/");
       else setUser(u);
     });
     return unsub;
-  }, [router]);
+  }, []);
 
-  // ✅ REAL-TIME MESSAGES
+  useEffect(() => {
+    getAllUsers().then(setUsers);
+  }, []);
+
+  // Real-time conversation doc (members, type, etc.)
   useEffect(() => {
     if (!chatId) return;
-
-    const q = query(
-      collection(db, "chats", chatId, "messages"),
-      orderBy("createdAt"),
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setMessages(msgs);
+    const unsub = onSnapshot(doc(db, "conversations", chatId), (snap) => {
+      if (snap.exists()) setConversation({ id: snap.id, ...snap.data() });
     });
-
-    return unsubscribe;
+    return unsub;
   }, [chatId]);
 
-  // ✅ AUTO SCROLL
+  // Real-time messages
+  useEffect(() => {
+    if (!chatId) return;
+    const unsub = subscribeToMessages(chatId, setMessages);
+    return unsub;
+  }, [chatId]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ SEND MESSAGE
   const send = async () => {
-    if (!input.trim() || !user) return;
-
+    if (!input.trim() || !user || !chatId) return;
     try {
-      await addDoc(collection(db, "chats", chatId, "messages"), {
-        text: input.trim(),
-        senderId: user.uid,
-        createdAt: serverTimestamp(),
-      });
-
+      await sendMessage(chatId, user.uid, input.trim());
       setInput("");
     } catch (err) {
-      console.error("Send message error:", err);
+      console.error("Send error:", err);
     }
   };
+
+  const handleAddMember = async (newUser) => {
+    try {
+      await addMemberToConversation(chatId, newUser.id, user.uid);
+      setAddSearch("");
+    } catch (err) {
+      alert("Could not add member: " + err.message);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!confirm("Remove this member from the conversation?")) return;
+    try {
+      await removeMemberFromConversation(chatId, memberId);
+    } catch (err) {
+      alert("Could not remove member: " + err.message);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+    if (!confirm("Delete this message?")) return;
+    setMenuMsgId(null);
+    try {
+      await deleteMessage(msgId);
+    } catch (err) {
+      alert("Could not delete message: " + err.message);
+    }
+  };
+
+  const handleStartEdit = (msg) => {
+    setMenuMsgId(null);
+    setEditingMsgId(msg.id);
+    setEditText(msg.text);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editText.trim()) return;
+    try {
+      await editMessage(editingMsgId, editText);
+      setEditingMsgId(null);
+      setEditText("");
+    } catch (err) {
+      alert("Could not edit message: " + err.message);
+    }
+  };
+
+  // Derive display name for the header
+  const otherMembers = conversation?.memberIds?.filter((id) => id !== user?.uid) ?? [];
+  const headerName = otherMembers
+    .map((id) => users.find((u) => u.id === id)?.displayName ?? "...")
+    .join(", ") || "Chat";
+
+  const isGroup = conversation?.type === "group";
+  const isAdmin =
+    conversation?.createdBy === user?.uid ||
+    conversation?.admins?.includes(user?.uid);
+
+  // Users not already in the conversation
+  const addablUsers = users.filter(
+    (u) =>
+      u.id !== user?.uid &&
+      !conversation?.memberIds?.includes(u.id) &&
+      u.displayName?.toLowerCase().includes(addSearch.toLowerCase())
+  );
 
   if (!chatId) return null;
 
   return (
     <Layout>
       <div style={s.root}>
-        <div style={s.header}>
-          <p style={s.name}>Chat</p>
+        {/* Clickable header */}
+        <div style={s.header} onClick={() => setHeaderOpen((o) => !o)}>
+          <div style={s.headerInner}>
+            <span style={s.avatar}>{isGroup ? "👥" : "👤"}</span>
+            <p style={s.name}>{headerName}</p>
+          </div>
+          <span style={s.chevron}>{headerOpen ? "▲" : "▼"}</span>
         </div>
 
-        <div style={s.msgList}>
+        {/* Dropdown panel */}
+        {headerOpen && conversation && (
+          <div style={s.panel}>
+            {/* Current members */}
+            <p style={s.panelSection}>Members</p>
+            {conversation.memberIds.map((memberId) => {
+              const member = users.find((u) => u.id === memberId);
+              if (!member) return null;
+              const isSelf = memberId === user?.uid;
+              const isCreator = memberId === conversation.createdBy;
+              return (
+                <div key={memberId} style={s.memberRow}>
+                  <span style={s.memberAvatar}>{member.avatar || "👤"}</span>
+                  <div style={s.memberInfo}>
+                    <p style={s.memberName}>
+                      {member.displayName}
+                      {isSelf ? " (you)" : ""}
+                      {isCreator ? " · Admin" : ""}
+                    </p>
+                    <p style={s.memberRole}>{member.role}</p>
+                  </div>
+                  {isGroup && isAdmin && !isSelf && !isCreator && (
+                    <button
+                      style={s.removeBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveMember(memberId);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Add member */}
+            <p style={s.panelSection}>
+              {isGroup ? "Add member" : "Add member (creates group)"}
+            </p>
+            <input
+              style={s.addSearch}
+              placeholder="Search employees..."
+              value={addSearch}
+              onChange={(e) => setAddSearch(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {addSearch.length > 0 && (
+              <div style={s.addList}>
+                {addablUsers.length === 0 && (
+                  <p style={s.noResults}>No employees found</p>
+                )}
+                {addablUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    style={s.addRow}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddMember(u);
+                    }}
+                  >
+                    <span style={s.memberAvatar}>{u.avatar || "👤"}</span>
+                    <div style={s.memberInfo}>
+                      <p style={s.memberName}>{u.displayName}</p>
+                      <p style={s.memberRole}>{u.role}</p>
+                    </div>
+                    <span style={s.addIcon}>＋</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Messages */}
+        <div style={s.msgList} onClick={() => { setHeaderOpen(false); setMenuMsgId(null); }}>
           {messages.map((msg) => {
             const isMe = msg.senderId === user?.uid;
-
+            const sender = users.find((u) => u.id === msg.senderId);
+            const isEditing = editingMsgId === msg.id;
+            const menuOpen = menuMsgId === msg.id;
             return (
-              <div
-                key={msg.id}
-                style={{
-                  ...s.msgRow,
-                  ...(isMe ? s.msgRowMe : {}),
-                }}
-              >
-                <div
-                  style={{
-                    ...s.bubble,
-                    ...(isMe ? s.bubbleMe : s.bubbleThem),
-                  }}
-                >
-                  <p style={s.msgText}>{msg.text}</p>
+              <div key={msg.id} style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}>
+                {/* Three-dot button + dropdown — only for own messages */}
+                {isMe && !isEditing && (
+                  <div style={s.msgMenuWrap}>
+                    <span
+                      style={s.msgMenuBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuMsgId(menuOpen ? null : msg.id);
+                      }}
+                    >
+                      ⋮
+                    </span>
+                    {menuOpen && (
+                      <div style={s.msgMenu}>
+                        <div style={s.msgMenuItem} onClick={(e) => { e.stopPropagation(); handleStartEdit(msg); }}>
+                          ✏️  Edit
+                        </div>
+                        <div style={{ ...s.msgMenuItem, ...s.msgMenuItemDanger }} onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}>
+                          🗑️  Delete
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                  {/* Optional timestamp */}
-                  {msg.createdAt && (
-                    <p style={s.msgTime}>
-                      {msg.createdAt.toDate().toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                {/* Bubble */}
+                <div style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}>
+                  {isGroup && !isMe && (
+                    <p style={s.senderName}>{sender?.displayName ?? ""}</p>
+                  )}
+                  {isEditing ? (
+                    <div>
+                      <textarea
+                        style={s.editInput}
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
+                          if (e.key === "Escape") { setEditingMsgId(null); setEditText(""); }
+                        }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div style={s.editActions}>
+                        <button style={s.editCancelBtn} onClick={() => { setEditingMsgId(null); setEditText(""); }}>Cancel</button>
+                        <button style={s.editSaveBtn} onClick={handleSaveEdit}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ ...s.msgText, ...(isMe ? s.msgTextMe : {}) }}>
+                      {msg.text}
                     </p>
                   )}
+                  <p style={s.msgTime}>
+                    {msg.createdAt?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {msg.editedAt ? "  · edited" : ""}
+                  </p>
                 </div>
               </div>
             );
@@ -122,12 +300,15 @@ export default function ConversationPage() {
           <div ref={bottomRef} />
         </div>
 
+        {/* Input */}
         <div style={s.inputRow}>
           <input
             style={s.input}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && enterToSend) send();
+              }}
             placeholder="Type a message..."
           />
           <button style={s.sendBtn} onClick={send}>
@@ -138,8 +319,6 @@ export default function ConversationPage() {
     </Layout>
   );
 }
-
-/* ✅ KEEPING YOUR STYLE STRUCTURE (TEAM SAFE) */
 
 const ACCENT = "#7b7fd4";
 const GREEN = "#5a9e5a";
@@ -155,14 +334,109 @@ const s = {
   header: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: GREEN,
-    padding: 16,
+    padding: "12px 16px",
+    cursor: "pointer",
+    userSelect: "none",
+  },
+  headerInner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  },
+  avatar: {
+    fontSize: 22,
   },
   name: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
     margin: 0,
+  },
+  chevron: {
+    color: "#fff",
+    fontSize: 12,
+  },
+  panel: {
+    backgroundColor: "#fff",
+    borderBottom: "1px solid #dde",
+    padding: "12px 16px",
+    maxHeight: 340,
+    overflowY: "auto",
+  },
+  panelSection: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    margin: "12px 0 6px",
+  },
+  memberRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "6px 0",
+    borderBottom: "1px solid #f0f0f0",
+  },
+  memberAvatar: {
+    fontSize: 22,
+    width: 32,
+    textAlign: "center",
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    margin: 0,
+    fontSize: 14,
+    fontWeight: "bold",
+    color: DARK,
+  },
+  memberRole: {
+    margin: 0,
+    fontSize: 12,
+    color: "#888",
+  },
+  removeBtn: {
+    fontSize: 12,
+    color: "#d93025",
+    background: "none",
+    border: "1px solid #d93025",
+    borderRadius: 6,
+    padding: "3px 8px",
+    cursor: "pointer",
+  },
+  addSearch: {
+    width: "100%",
+    padding: "7px 12px",
+    borderRadius: 8,
+    border: "1px solid #ddd",
+    fontSize: 14,
+    outline: "none",
+    boxSizing: "border-box",
+  },
+  addList: {
+    marginTop: 6,
+  },
+  noResults: {
+    color: "#aaa",
+    fontSize: 13,
+    margin: "8px 0",
+  },
+  addRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "6px 4px",
+    borderRadius: 6,
+    cursor: "pointer",
+  },
+  addIcon: {
+    fontSize: 18,
+    color: ACCENT,
+    fontWeight: "bold",
   },
   msgList: {
     flex: 1,
@@ -189,10 +463,19 @@ const s = {
   bubbleMe: {
     backgroundColor: ACCENT,
   },
+  senderName: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: ACCENT,
+    margin: "0 0 3px",
+  },
   msgText: {
     color: DARK,
     fontSize: 14,
     margin: 0,
+  },
+  msgTextMe: {
+    color: "#fff",
   },
   msgTime: {
     fontSize: 10,
@@ -222,6 +505,87 @@ const s = {
     border: "none",
     padding: "8px 20px",
     color: "#fff",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  msgMenuWrap: {
+    position: "relative",
+    alignSelf: "flex-start",
+    marginTop: 6,
+    marginRight: 6,
+    flexShrink: 0,
+  },
+  msgMenuBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 28,
+    height: 28,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#444",
+    cursor: "pointer",
+    userSelect: "none",
+    borderRadius: 6,
+    backgroundColor: "#e8eaf6",
+    border: "1px solid #c5c8e8",
+  },
+  msgMenu: {
+    position: "absolute",
+    top: 32,
+    right: 0,
+    zIndex: 50,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+    minWidth: 120,
+    overflow: "hidden",
+  },
+  msgMenuItem: {
+    padding: "9px 14px",
+    fontSize: 13,
+    cursor: "pointer",
+    borderBottom: "1px solid #f0f0f0",
+    color: "#222",
+    whiteSpace: "nowrap",
+  },
+  msgMenuItemDanger: {
+    color: "#d93025",
+  },
+  editInput: {
+    width: "100%",
+    minWidth: 180,
+    padding: "6px 8px",
+    borderRadius: 6,
+    border: "1px solid #ccc",
+    fontSize: 14,
+    resize: "none",
+    outline: "none",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  },
+  editActions: {
+    display: "flex",
+    gap: 6,
+    marginTop: 6,
+    justifyContent: "flex-end",
+  },
+  editCancelBtn: {
+    padding: "4px 12px",
+    borderRadius: 6,
+    border: "1px solid #ccc",
+    background: "#fff",
+    fontSize: 12,
+    cursor: "pointer",
+    color: "#555",
+  },
+  editSaveBtn: {
+    padding: "4px 12px",
+    borderRadius: 6,
+    border: "none",
+    background: ACCENT,
+    color: "#fff",
+    fontSize: 12,
     fontWeight: "bold",
     cursor: "pointer",
   },

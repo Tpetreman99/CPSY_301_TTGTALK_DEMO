@@ -1,20 +1,17 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { signOut } from "firebase/auth";
-
-import { contacts, conversations } from "../lib/mockData";
+import { auth } from "../lib/firebaseConfig";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
-  collection,
-  getDocs,
-  query,
-  where,
-  addDoc,
-  onSnapshot,
-  serverTimestamp,
-} from "firebase/firestore";
-import { auth, db } from "../lib/firebaseConfig";
+  getAllUsers,
+  createOrGetDirectConversation,
+  subscribeToConversationPreviews,
+  hideConversation,
+  deleteConversation,
+  deleteGroupConversation,
+} from "../lib/chatService";
+import logo from "../assets/images/ttglogo.png";
+import NewChatModal from "./NewChatModal";
 
 export default function Layout({ children }) {
   const router = useRouter();
@@ -22,139 +19,117 @@ export default function Layout({ children }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
+  const [conversations, setConversations] = useState([]);
   const [users, setUsers] = useState([]);
-  const [chats, setChats] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState(null);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        const usersList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          name: doc.data().displayName || "Unnamed", // <-- map displayName
-          avatar: doc.data().avatar || "👤",
-          role: doc.data().role || "",
-          email: doc.data().email || "",
-          uid: doc.data().uid || "",
-        }));
-        setUsers(usersList);
-      } catch (err) {
-        console.error("Failed to fetch users:", err);
-      }
-    };
-
-    fetchUsers();
+    async function loadUsers() {
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+    }
+    loadUsers();
   }, []);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = subscribeToConversationPreviews(
+      currentUser.uid,
+      (convos) => {
+        setConversations(convos);
+      },
+    );
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const close = () => setMenuOpenId(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [menuOpenId]);
 
   const handleSearch = (text) => {
     setSearch(text);
     if (text.length > 0) {
       setSearchResults(
-        users.filter((u) => u.name.toLowerCase().includes(text.toLowerCase())),
+        users.filter((u) =>
+          u.displayName?.toLowerCase().includes(text.toLowerCase()),
+        ),
       );
     } else {
       setSearchResults([]);
     }
   };
 
-  // const openChat = (contact) => {
-  //   setSearch("");
-  //   setSearchResults([]);
-  //   setSearchFocused(false);
-  //   setActiveChat(contact.id);
-  //   router.push(`/conversation/${contact.id}`);
-  // };
-
-  const openChat = async (contact) => {
-    console.log("Opening chat with:", contact);
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) {
-      console.log("No logged-in user");
-      return;
-    }
-
+  const openChat = async (contactOrId, type) => {
+    if (!currentUser) return;
     try {
-      //Step 1: Find existing chat
-      const q = query(
-        collection(db, "chats"),
-        where("participants", "array-contains", currentUser.uid),
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      let existingChat = null;
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-
-        if (data.participants.includes(contact.uid)) {
-          existingChat = { id: doc.id, ...data };
-        }
-      });
-
-      //Step 2: If chat exists → open it
-      if (existingChat) {
-        console.log("Chat exists:", existingChat.id);
-        router.push(`/conversation/${existingChat.id}`);
-        return;
+      let conversationId;
+      if (type === "group") {
+        conversationId = contactOrId;
+      } else {
+        conversationId = await createOrGetDirectConversation(
+          currentUser.uid,
+          contactOrId.id,
+        );
+        setActiveChat(contactOrId.id);
       }
-
-      //Step 3: If not → create new chat
-      const newChat = await addDoc(collection(db, "chats"), {
-        participants: [currentUser.uid, contact.uid],
-        createdAt: serverTimestamp(),
-      });
-
-      console.log("New chat created:", newChat.id);
-
-      router.push(`/conversation/${newChat.id}`);
+      setSearch("");
+      setSearchResults([]);
+      setSearchFocused(false);
+      router.push(`/conversation/${conversationId}`);
     } catch (err) {
-      console.error("Error opening chat:", err);
+      console.error("Failed to open chat", err);
+      alert("Could not open chat: " + err.message);
     }
   };
 
-  const getLastMessage = (contactId) => {
-    const msgs = conversations[contactId];
-    if (!msgs || msgs.length === 0) return "";
-    const last = msgs[msgs.length - 1];
-    const sender =
-      last.from === "lemres"
-        ? "You"
-        : contacts.find((c) => c.id === last.from)?.name.split(" ")[0];
-    return `${sender}: ${last.text}`;
+  const handleHideChat = async (conversationId) => {
+    try {
+      await hideConversation(conversationId, currentUser.uid);
+      if (router.query.id === conversationId) router.push("/home");
+    } catch (err) {
+      console.error("Failed to hide chat", err);
+      alert("Could not hide chat: " + err.message);
+    }
   };
 
-  useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
-      if (!currentUser) return;
+  const handleDeleteChat = async (conversationId) => {
+    if (
+      !confirm(
+        "Remove this chat from your list? The other participants will not be affected.",
+      )
+    )
+      return;
+    try {
+      await deleteConversation(conversationId, currentUser.uid);
+      if (router.query.id === conversationId) router.push("/home");
+    } catch (err) {
+      console.error("Failed to delete chat", err);
+      alert("Could not delete chat: " + err.message);
+    }
+  };
 
-      const q = query(
-        collection(db, "chats"),
-        where("participants", "array-contains", currentUser.uid),
-      );
-
-      const unsubscribeChats = onSnapshot(q, (snapshot) => {
-        const chatList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        console.log("Chats updated:", chatList); // 👈 debug
-        setChats(chatList);
-      });
-
-      return unsubscribeChats;
-    });
-
-    return () => unsubscribeAuth();
-  }, []);
-
-  const getOtherUser = (chat) => {
-    const currentUser = auth.currentUser;
-    const otherUid = chat.participants.find((uid) => uid !== currentUser.uid);
-
-    return users.find((u) => u.uid === otherUid);
+  const handleDeleteGroup = async (conversationId) => {
+    if (!confirm("Delete this group for everyone? This cannot be undone."))
+      return;
+    try {
+      await deleteGroupConversation(conversationId);
+      if (router.query.id === conversationId) router.push("/home");
+    } catch (err) {
+      console.error("Failed to delete group", err);
+      alert("Could not delete group: " + err.message);
+    }
   };
 
   return (
@@ -162,10 +137,17 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <div style={s.sidebar}>
         <div style={s.logoBox}>
-          <span style={s.logoText}>TTG</span>
+          <button
+            onClick={() => router.push("../home")}
+            style={{ background: "none", border: "none" }}
+          >
+            <img src={logo.src} width={70} alt="TTG Logo" />
+          </button>
         </div>
-        <button style={s.iconBtn}>＋</button>
-        <button style={s.iconBtn}>⚙</button>
+        <button style={s.iconBtn} onClick={() => setShowNewChat(true)}>
+          ＋
+        </button>
+        <button style={s.iconBtn} onClick={() => router.push('/settings')}>⚙</button>
         <div style={{ flex: 1 }} />
         <button style={s.iconBtn} onClick={() => signOut(auth)}>
           ⇥
@@ -180,7 +162,7 @@ export default function Layout({ children }) {
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             onFocus={() => setSearchFocused(true)}
-            onBlur={() => setTimeout(() => setSearchFocused(false), 300)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
             placeholder="Search"
           />
           <span>🔍</span>
@@ -192,11 +174,12 @@ export default function Layout({ children }) {
               <div
                 key={c.id}
                 style={s.dropItem}
-                onMouseDown={() => openChat(c)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => openChat(c)}
               >
                 <span style={s.dropAvatar}>{c.avatar}</span>
                 <div>
-                  <p style={s.dropName}>{c.name}</p>
+                  <p style={s.dropName}>{c.displayName}</p>
                   <p style={s.dropRole}>{c.role}</p>
                 </div>
               </div>
@@ -204,48 +187,190 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        {chats.map((chat) => {
-          const otherUser = getOtherUser(chat);
+        {conversations.map((convo) => {
+          if (convo.type === "group") {
+            const memberNames = convo.memberIds
+              .filter((id) => id !== currentUser?.uid)
+              .map((id) => {
+                const user = users.find((u) => u.id === id);
+                return user ? user.displayName : "";
+              })
+              .filter(Boolean)
+              .join(", ");
 
-          if (!otherUser) return null;
+            return (
+              <div
+                key={convo.conversationId}
+                style={{ ...s.chatRow, position: "relative" }}
+                onClick={() =>
+                  router.push(`/conversation/${convo.conversationId}`)
+                }
+              >
+                <span style={s.avatar}>👥</span>
+                <div style={s.chatInfo}>
+                  <p style={s.chatName}>{memberNames || "Group chat"}</p>
+                  <p style={s.chatPreview}>{convo.lastMessageText}</p>
+                </div>
+                <span
+                  style={s.dots}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpenId(
+                      menuOpenId === convo.conversationId
+                        ? null
+                        : convo.conversationId,
+                    );
+                  }}
+                >
+                  •••
+                </span>
+                {menuOpenId === convo.conversationId && (
+                  <div style={s.chatMenu}>
+                    {[
+                      { label: "📦  Archive chat" },
+                      { label: "✉️  Mark as unread" },
+                      { label: "📄  Generate report" },
+                      {
+                        label: "🙈  Hide chat",
+                        action: () => handleHideChat(convo.conversationId),
+                      },
+                      ...(convo.createdBy === currentUser?.uid ||
+                      convo.admins?.includes(currentUser?.uid)
+                        ? [
+                            {
+                              label: "🗑️  Delete group",
+                              danger: true,
+                              action: () =>
+                                handleDeleteGroup(convo.conversationId),
+                            },
+                          ]
+                        : []),
+                    ].map(({ label, danger, action }) => (
+                      <div
+                        key={label}
+                        style={{
+                          ...s.chatMenuItem,
+                          ...(danger ? s.chatMenuItemDanger : {}),
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpenId(null);
+                          action?.();
+                        }}
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const contact = users.find((u) => u.id === convo.otherUserId);
+          if (!contact) return null;
 
           return (
             <div
-              key={chat.id}
+              key={convo.conversationId}
               style={{
                 ...s.chatRow,
-                ...(activeChat === chat.id ? s.chatRowActive : {}),
+                position: "relative",
+                ...(activeChat === contact.id ? s.chatRowActive : {}),
               }}
-              onClick={() => {
-                setActiveChat(chat.id);
-                router.push(`/conversation/${chat.id}`);
-              }}
+              onClick={() => openChat(contact)}
             >
-              <span style={s.avatar}>{otherUser.avatar}</span>
-              <div style={s.chatInfo}>
-                <p style={s.chatName}>{otherUser.name}</p>
-                <p style={s.chatPreview}>Tap to chat</p>
+              <div style={s.avatarWrap}>
+                <span style={s.avatar}>{contact.avatar}</span>
+                <span style={{ ...s.presenceDot, backgroundColor: PRESENCE_COLORS[contact.presence] || PRESENCE_COLORS.offline }} />
               </div>
-              <span style={s.dots}>•••</span>
+              <div style={s.chatInfo}>
+                <p style={s.chatName}>{contact.displayName}</p>
+                <p style={s.chatPreview}>
+                  {contact.status ? `${contact.status} · ` : ''}{convo.lastMessageText}
+                </p>
+              </div>
+              <span
+                style={s.dots}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpenId(
+                    menuOpenId === convo.conversationId
+                      ? null
+                      : convo.conversationId,
+                  );
+                }}
+              >
+                •••
+              </span>
+              {menuOpenId === convo.conversationId && (
+                <div style={s.chatMenu}>
+                  {[
+                    { label: "📦  Archive chat" },
+                    { label: "✉️  Mark as unread" },
+                    { label: "📄  Generate report" },
+                    {
+                      label: "🙈  Hide chat",
+                      action: () => handleHideChat(convo.conversationId),
+                    },
+                    {
+                      label: "🗑️  Delete chat",
+                      danger: true,
+                      action: () => handleDeleteChat(convo.conversationId),
+                    },
+                  ].map(({ label, danger, action }) => (
+                    <div
+                      key={label}
+                      style={{
+                        ...s.chatMenuItem,
+                        ...(danger ? s.chatMenuItemDanger : {}),
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpenId(null);
+                        action?.();
+                      }}
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Page content slots in here */}
+      {/* Page content */}
       <div style={s.main}>{children}</div>
+
+      {showNewChat && (
+        <NewChatModal
+          users={users}
+          currentUser={currentUser}
+          onClose={() => setShowNewChat(false)}
+          onOpenChat={openChat}
+        />
+      )}
     </div>
   );
 }
 
-const ACCENT = "#7b7fd4";
-const GREEN = "#5a9e5a";
 const DARK = "#1a2744";
+
+const PRESENCE_COLORS = {
+  online:  '#5a9e5a',
+  busy:    '#d93025',
+  away:    '#f5a623',
+  offline: '#aaaaaa',
+};
 
 const s = {
   root: {
     display: "flex",
     height: "100vh",
+    width: "100%",
+    overflow: "hidden",
     backgroundColor: "#f0f2f8",
   },
   sidebar: {
@@ -254,28 +379,23 @@ const s = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    padding: "16px 0",
+    padding: "16px",
     gap: 16,
   },
   logoBox: {
+    paddingTop: 20,
+    paddingBottom: 20,
     width: 48,
     height: 48,
-    borderRadius: 24,
-    border: "2px solid #fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-  },
-  logoText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 12,
   },
   iconBtn: {
     background: "none",
     border: "none",
     color: "#fff",
-    fontSize: 22,
+    fontSize: 50,
     cursor: "pointer",
   },
   chatList: {
@@ -343,9 +463,22 @@ const s = {
   chatRowActive: {
     backgroundColor: "#c0cadf",
   },
+  avatarWrap: {
+    position: 'relative',
+    marginRight: 10,
+    flexShrink: 0,
+  },
   avatar: {
     fontSize: 30,
-    marginRight: 10,
+  },
+  presenceDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: '50%',
+    border: '2px solid #dde4f0',
   },
   chatInfo: {
     flex: 1,
@@ -367,11 +500,38 @@ const s = {
   },
   dots: {
     color: "#888",
-    fontSize: 10,
+    fontSize: 14,
+    padding: "4px 6px",
+    borderRadius: 4,
+    cursor: "pointer",
+    userSelect: "none",
+  },
+  chatMenu: {
+    position: "absolute",
+    right: 8,
+    top: 36,
+    zIndex: 100,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+    minWidth: 160,
+    overflow: "hidden",
+  },
+  chatMenuItem: {
+    padding: "10px 16px",
+    fontSize: 13,
+    cursor: "pointer",
+    borderBottom: "1px solid #f0f0f0",
+    color: "#222",
+  },
+  chatMenuItemDanger: {
+    color: "#d93025",
   },
   main: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
+    overflow: "hidden",
+    minWidth: 0,
   },
 };
