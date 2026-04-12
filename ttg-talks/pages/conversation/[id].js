@@ -6,7 +6,7 @@ import { auth, db } from "../../lib/firebaseConfig";
 import Layout from "../../components/Layout";
 import { useSettings } from "../../lib/SettingsContext";
 import {
-  getAllUsers,
+  subscribeToUsers,
   sendMessage,
   addMemberToConversation,
   removeMemberFromConversation,
@@ -42,19 +42,31 @@ export default function ConversationPage() {
   }, []);
 
   useEffect(() => {
-    getAllUsers().then(setUsers);
+    const unsubscribe = subscribeToUsers((allUsers) => {
+      setUsers(allUsers);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Real-time conversation doc (members, type, etc.)
   useEffect(() => {
     if (!chatId) return;
     const unsub = onSnapshot(doc(db, "conversations", chatId), (snap) => {
-      if (snap.exists()) setConversation({ id: snap.id, ...snap.data() });
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+      setConversation({
+        id: snap.id,
+        ...data,
+        type:
+          data.type === "group" && data.memberIds?.length === 2
+            ? "direct"
+            : data.type,
+      });
     });
     return unsub;
   }, [chatId]);
 
-  // Real-time messages
   useEffect(() => {
     if (!chatId) return;
     const unsub = subscribeToMessages(chatId, setMessages);
@@ -120,18 +132,20 @@ export default function ConversationPage() {
     }
   };
 
-  // Derive display name for the header
   const otherMembers = conversation?.memberIds?.filter((id) => id !== user?.uid) ?? [];
   const headerName = otherMembers
     .map((id) => users.find((u) => u.id === id)?.displayName ?? "...")
     .join(", ") || "Chat";
+  const directRecipient =
+    otherMembers.length === 1
+      ? users.find((u) => u.id === otherMembers[0]) || null
+      : null;
 
   const isGroup = conversation?.type === "group";
   const isAdmin =
     conversation?.createdBy === user?.uid ||
     conversation?.admins?.includes(user?.uid);
 
-  // Users not already in the conversation
   const addablUsers = users.filter(
     (u) =>
       u.id !== user?.uid &&
@@ -144,19 +158,16 @@ export default function ConversationPage() {
   return (
     <Layout>
       <div style={s.root}>
-        {/* Clickable header */}
         <div style={s.header} onClick={() => setHeaderOpen((o) => !o)}>
           <div style={s.headerInner}>
-            <span style={s.avatar}>{isGroup ? "👥" : "👤"}</span>
+            <span style={s.avatar}>{isGroup ? "👥" : directRecipient?.avatar || "👤"}</span>
             <p style={s.name}>{headerName}</p>
           </div>
           <span style={s.chevron}>{headerOpen ? "▲" : "▼"}</span>
         </div>
 
-        {/* Dropdown panel */}
         {headerOpen && conversation && (
           <div style={s.panel}>
-            {/* Current members */}
             <p style={s.panelSection}>Members</p>
             {conversation.memberIds.map((memberId) => {
               const member = users.find((u) => u.id === memberId);
@@ -189,7 +200,6 @@ export default function ConversationPage() {
               );
             })}
 
-            {/* Add member */}
             <p style={s.panelSection}>
               {isGroup ? "Add member" : "Add member (creates group)"}
             </p>
@@ -227,7 +237,6 @@ export default function ConversationPage() {
           </div>
         )}
 
-        {/* Messages */}
         <div style={s.msgList} onClick={() => { setHeaderOpen(false); setMenuMsgId(null); }}>
           {messages.map((msg) => {
             const isMe = msg.senderId === user?.uid;
@@ -236,7 +245,6 @@ export default function ConversationPage() {
             const menuOpen = menuMsgId === msg.id;
             return (
               <div key={msg.id} style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}>
-                {/* Three-dot button + dropdown — only for own messages */}
                 {isMe && !isEditing && (
                   <div style={s.msgMenuWrap}>
                     <span
@@ -261,7 +269,6 @@ export default function ConversationPage() {
                   </div>
                 )}
 
-                {/* Bubble */}
                 <div style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}>
                   {isGroup && !isMe && (
                     <p style={s.senderName}>{sender?.displayName ?? ""}</p>
@@ -273,8 +280,14 @@ export default function ConversationPage() {
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
-                          if (e.key === "Escape") { setEditingMsgId(null); setEditText(""); }
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSaveEdit();
+                          }
+                          if (e.key === "Escape") {
+                            setEditingMsgId(null);
+                            setEditText("");
+                          }
                         }}
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
@@ -300,15 +313,14 @@ export default function ConversationPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
         <div style={s.inputRow}>
           <input
             style={s.input}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && enterToSend) send();
-              }}
+              if (e.key === "Enter" && !e.shiftKey && enterToSend) send();
+            }}
             placeholder="Type a message..."
           />
           <button style={s.sendBtn} onClick={send}>

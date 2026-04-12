@@ -3,9 +3,9 @@ import { useRouter } from "next/router";
 import { auth } from "../lib/firebaseConfig";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
-  getAllUsers,
   createOrGetDirectConversation,
   subscribeToConversationPreviews,
+  subscribeToUsers,
   hideConversation,
   deleteConversation,
   deleteGroupConversation,
@@ -26,11 +26,11 @@ export default function Layout({ children }) {
   const [menuOpenId, setMenuOpenId] = useState(null);
 
   useEffect(() => {
-    async function loadUsers() {
-      const allUsers = await getAllUsers();
+    const unsubscribe = subscribeToUsers((allUsers) => {
       setUsers(allUsers);
-    }
-    loadUsers();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -109,8 +109,9 @@ export default function Layout({ children }) {
       !confirm(
         "Remove this chat from your list? The other participants will not be affected.",
       )
-    )
+    ) {
       return;
+    }
     try {
       await deleteConversation(conversationId, currentUser.uid);
       if (router.query.id === conversationId) router.push("/home");
@@ -121,8 +122,9 @@ export default function Layout({ children }) {
   };
 
   const handleDeleteGroup = async (conversationId) => {
-    if (!confirm("Delete this group for everyone? This cannot be undone."))
+    if (!confirm("Delete this group for everyone? This cannot be undone.")) {
       return;
+    }
     try {
       await deleteGroupConversation(conversationId);
       if (router.query.id === conversationId) router.push("/home");
@@ -132,9 +134,15 @@ export default function Layout({ children }) {
     }
   };
 
+  const truncateMessageText = (text) => {
+    if (!text) return "";
+    return text.length > 20 ? `${text.slice(0, 20)}...` : text;
+  };
+
+  const currentUserProfile = users.find((u) => u.id === currentUser?.uid);
+
   return (
     <div style={s.root}>
-      {/* Sidebar */}
       <div style={s.sidebar}>
         <div style={s.logoBox}>
           <button
@@ -144,17 +152,33 @@ export default function Layout({ children }) {
             <img src={logo.src} width={70} alt="TTG Logo" />
           </button>
         </div>
+        {currentUserProfile && (
+          <div style={s.sidebarPresence}>
+            <div style={s.avatarWrap}>
+              <span style={s.avatar}>{currentUserProfile.avatar || "👤"}</span>
+              <span
+                style={{
+                  ...s.presenceDot,
+                  backgroundColor:
+                    PRESENCE_COLORS[currentUserProfile.presence] || PRESENCE_COLORS.offline,
+                  border: "2px solid #1a2744",
+                }}
+              />
+            </div>
+          </div>
+        )}
         <button style={s.iconBtn} onClick={() => setShowNewChat(true)}>
           ＋
         </button>
-        <button style={s.iconBtn} onClick={() => router.push('/settings')}>⚙</button>
+        <button style={s.iconBtn} onClick={() => router.push("/settings")}>
+          ⚙
+        </button>
         <div style={{ flex: 1 }} />
         <button style={s.iconBtn} onClick={() => signOut(auth)}>
           ⇥
         </button>
       </div>
 
-      {/* Chat list */}
       <div style={s.chatList}>
         <div style={s.searchBar}>
           <input
@@ -177,7 +201,15 @@ export default function Layout({ children }) {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => openChat(c)}
               >
-                <span style={s.dropAvatar}>{c.avatar}</span>
+                <div style={s.avatarWrap}>
+                  <span style={s.dropAvatar}>{c.avatar || "👤"}</span>
+                  <span
+                    style={{
+                      ...s.presenceDot,
+                      backgroundColor: PRESENCE_COLORS[c.presence] || PRESENCE_COLORS.offline,
+                    }}
+                  />
+                </div>
                 <div>
                   <p style={s.dropName}>{c.displayName}</p>
                   <p style={s.dropRole}>{c.role}</p>
@@ -209,7 +241,7 @@ export default function Layout({ children }) {
                 <span style={s.avatar}>👥</span>
                 <div style={s.chatInfo}>
                   <p style={s.chatName}>{memberNames || "Group chat"}</p>
-                  <p style={s.chatPreview}>{convo.lastMessageText}</p>
+                  <p style={s.chatPreview}>{truncateMessageText(convo.lastMessageText)}</p>
                 </div>
                 <span
                   style={s.dots}
@@ -281,13 +313,19 @@ export default function Layout({ children }) {
               onClick={() => openChat(contact)}
             >
               <div style={s.avatarWrap}>
-                <span style={s.avatar}>{contact.avatar}</span>
-                <span style={{ ...s.presenceDot, backgroundColor: PRESENCE_COLORS[contact.presence] || PRESENCE_COLORS.offline }} />
+                <span style={s.avatar}>{contact.avatar || "👤"}</span>
+                <span
+                  style={{
+                    ...s.presenceDot,
+                    backgroundColor: PRESENCE_COLORS[contact.presence] || PRESENCE_COLORS.offline,
+                  }}
+                />
               </div>
               <div style={s.chatInfo}>
                 <p style={s.chatName}>{contact.displayName}</p>
                 <p style={s.chatPreview}>
-                  {contact.status ? `${contact.status} · ` : ''}{convo.lastMessageText}
+                  {contact.status ? `${contact.status} · ` : ""}
+                  {truncateMessageText(convo.lastMessageText)}
                 </p>
               </div>
               <span
@@ -341,7 +379,6 @@ export default function Layout({ children }) {
         })}
       </div>
 
-      {/* Page content */}
       <div style={s.main}>{children}</div>
 
       {showNewChat && (
@@ -359,10 +396,10 @@ export default function Layout({ children }) {
 const DARK = "#1a2744";
 
 const PRESENCE_COLORS = {
-  online:  '#5a9e5a',
-  busy:    '#d93025',
-  away:    '#f5a623',
-  offline: '#aaaaaa',
+  online: "#5a9e5a",
+  busy: "#d93025",
+  away: "#f5a623",
+  offline: "#aaaaaa",
 };
 
 const s = {
@@ -397,6 +434,12 @@ const s = {
     color: "#fff",
     fontSize: 50,
     cursor: "pointer",
+  },
+  sidebarPresence: {
+    minHeight: 40,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   chatList: {
     width: 300,
@@ -464,7 +507,7 @@ const s = {
     backgroundColor: "#c0cadf",
   },
   avatarWrap: {
-    position: 'relative',
+    position: "relative",
     marginRight: 10,
     flexShrink: 0,
   },
@@ -472,13 +515,13 @@ const s = {
     fontSize: 30,
   },
   presenceDot: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
     width: 10,
     height: 10,
-    borderRadius: '50%',
-    border: '2px solid #dde4f0',
+    borderRadius: "50%",
+    border: "2px solid #dde4f0",
   },
   chatInfo: {
     flex: 1,

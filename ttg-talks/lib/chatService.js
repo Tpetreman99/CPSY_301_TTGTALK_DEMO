@@ -32,6 +32,17 @@ export async function getAllUsers() {
   }));
 }
 
+export function subscribeToUsers(callback) {
+  return onSnapshot(collection(db, 'users'), (snapshot) => {
+    callback(
+      snapshot.docs.map((userDoc) => ({
+        id: userDoc.id,
+        ...userDoc.data(),
+      }))
+    );
+  });
+}
+
 export async function createOrGetDirectConversation(currentUserId, otherUserId) {
   const memberIds = [currentUserId, otherUserId].sort();
 
@@ -56,6 +67,25 @@ export async function createOrGetDirectConversation(currentUserId, otherUserId) 
     return existing.id;
   }
 
+  const fallbackGroup = snapshot.docs.find((docSnap) => {
+    const data = docSnap.data();
+    return data.type === 'group' && data.memberIds?.length === 2 && data.memberIds.includes(otherUserId);
+  });
+
+  if (fallbackGroup) {
+    const updates = {
+      type: 'direct',
+      updatedAt: serverTimestamp(),
+    };
+
+    if (fallbackGroup.data().hiddenFor?.includes(currentUserId)) {
+      updates.hiddenFor = arrayRemove(currentUserId);
+    }
+
+    await updateDoc(doc(db, 'conversations', fallbackGroup.id), updates);
+    return fallbackGroup.id;
+  }
+
   const docRef = await addDoc(collection(db, 'conversations'), {
     type: 'direct',
     memberIds,
@@ -78,6 +108,10 @@ export async function getConversationById(conversationId) {
   return {
     id: snapshot.id,
     ...snapshot.data(),
+    type:
+      snapshot.data().type === 'group' && snapshot.data().memberIds?.length === 2
+        ? 'direct'
+        : snapshot.data().type,
   };
 }
 
@@ -170,10 +204,12 @@ export function subscribeToConversationPreviews(userId, callback) {
 
     snapshot.docs.forEach((document) => {
       const data = document.data();
+      const conversationType =
+        data.type === 'group' && data.memberIds?.length === 2 ? 'direct' : data.type;
 
       if (data.hiddenFor?.includes(userId)) return;
 
-      if (data.type === 'group') {
+      if (conversationType === 'group') {
         results.push({
           conversationId: document.id,
           type: 'group',
@@ -253,9 +289,22 @@ export async function addMemberToConversation(conversationId, newUserId, current
 
 // Removes a member from a group conversation. Admin-only (enforced in UI).
 export async function removeMemberFromConversation(conversationId, userId) {
-  await updateDoc(doc(db, 'conversations', conversationId), {
-    memberIds: arrayRemove(userId),
-  });
+  const convRef = doc(db, 'conversations', conversationId);
+  const convSnap = await getDoc(convRef);
+  if (!convSnap.exists()) throw new Error('Conversation not found');
+
+  const currentMemberIds = convSnap.data().memberIds || [];
+  const nextMemberIds = currentMemberIds.filter((memberId) => memberId !== userId);
+
+  const updates = {
+    memberIds: nextMemberIds,
+  };
+
+  if (nextMemberIds.length === 2) {
+    updates.type = 'direct';
+  }
+
+  await updateDoc(convRef, updates);
 }
 
 // Temporarily hides the conversation for this user. History is restored when they reopen the chat.
