@@ -18,17 +18,7 @@ export default function ConversationPage() {
   const [chatUser, setChatUser] = useState(null);
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [user, setUser] = useState(null);
-  const [conversation, setConversation] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [headerOpen, setHeaderOpen] = useState(false);
-  const [addSearch, setAddSearch] = useState("");
-  const [menuMsgId, setMenuMsgId] = useState(null);
-  const [editingMsgId, setEditingMsgId] = useState(null);
-  const [editText, setEditText] = useState("");
-
-  const { enterToSend } = useSettings();
+  const [input, setInput] = useState('');
   const bottomRef = useRef(null);
   const [groupMembers, setGroupMembers] = useState([]);
 
@@ -163,7 +153,6 @@ export default function ConversationPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
         <div style={s.inputRow}>
           <input
             style={s.input}
@@ -176,142 +165,54 @@ export default function ConversationPage() {
                 : `Message ${chatUser.displayName.split(' ')[0]}`
             }
           />
-          <button style={s.sendBtn} onClick={send}>
-            Send
-          </button>
+          <button style={s.sendBtn} onClick={send}>Send</button>
         </div>
       </div>
     </Layout>
   );
 }
 
-const ACCENT = "#7b7fd4";
-const GREEN = "#5a9e5a";
-const DARK = "#1a2744";
+const ACCENT = '#7b7fd4';
+const GREEN = '#5a9e5a';
+const DARK = '#1a2744';
 
 const s = {
   root: {
-    display: "flex",
-    flexDirection: "column",
+    display: 'flex',
+    flexDirection: 'column',
     flex: 1,
     overflow: 'hidden',
     width: '100%',
     boxSizing: 'border-box',
   },
   header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
+    display: 'flex',
+    alignItems: 'center',
     backgroundColor: GREEN,
-    padding: "12px 16px",
-    cursor: "pointer",
-    userSelect: "none",
-  },
-  headerInner: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
+    padding: 16,
+    gap: 12,
   },
   avatar: {
-    fontSize: 22,
+    fontSize: 30,
   },
   name: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 16,
     margin: 0,
   },
-  chevron: {
-    color: "#fff",
+  role: {
+    color: '#d0ead0',
     fontSize: 12,
-  },
-  panel: {
-    backgroundColor: "#fff",
-    borderBottom: "1px solid #dde",
-    padding: "12px 16px",
-    maxHeight: 340,
-    overflowY: "auto",
-  },
-  panelSection: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    margin: "12px 0 6px",
-  },
-  memberRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "6px 0",
-    borderBottom: "1px solid #f0f0f0",
-  },
-  memberAvatar: {
-    fontSize: 22,
-    width: 32,
-    textAlign: "center",
-  },
-  memberInfo: {
-    flex: 1,
-  },
-  memberName: {
     margin: 0,
-    fontSize: 14,
-    fontWeight: "bold",
-    color: DARK,
-  },
-  memberRole: {
-    margin: 0,
-    fontSize: 12,
-    color: "#888",
-  },
-  removeBtn: {
-    fontSize: 12,
-    color: "#d93025",
-    background: "none",
-    border: "1px solid #d93025",
-    borderRadius: 6,
-    padding: "3px 8px",
-    cursor: "pointer",
-  },
-  addSearch: {
-    width: "100%",
-    padding: "7px 12px",
-    borderRadius: 8,
-    border: "1px solid #ddd",
-    fontSize: 14,
-    outline: "none",
-    boxSizing: "border-box",
-  },
-  addList: {
-    marginTop: 6,
-  },
-  noResults: {
-    color: "#aaa",
-    fontSize: 13,
-    margin: "8px 0",
-  },
-  addRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "6px 4px",
-    borderRadius: 6,
-    cursor: "pointer",
-  },
-  addIcon: {
-    fontSize: 18,
-    color: ACCENT,
-    fontWeight: "bold",
   },
   msgList: {
     flex: 1,
     overflowY: 'auto',
     overflowX: 'hidden',
     padding: 16,
-    display: "flex",
-    flexDirection: "column",
+    display: 'flex',
+    flexDirection: 'column',
     gap: 12,
   },
   msgRow: {
@@ -322,7 +223,10 @@ const s = {
     maxWidth: '100%',
   },
   msgRowMe: {
-    justifyContent: "flex-end",
+    justifyContent: 'flex-end',
+  },
+  msgAvatar: {
+    fontSize: 24,
   },
   bubble: {
     maxWidth: '30%',
@@ -334,135 +238,46 @@ const s = {
     overflow: 'hidden',
   },
   bubbleThem: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   bubbleMe: {
     backgroundColor: ACCENT,
-  },
-  senderName: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: ACCENT,
-    margin: "0 0 3px",
   },
   msgText: {
     color: DARK,
     fontSize: 14,
     margin: 0,
   },
-  msgTextMe: {
-    color: "#fff",
-  },
   msgTime: {
+    color: '#999',
     fontSize: 10,
-    color: "#999",
     marginTop: 4,
-    textAlign: "right",
+    textAlign: 'right',
+    margin: 0,
   },
   inputRow: {
-    display: "flex",
+    display: 'flex',
     padding: 12,
     gap: 8,
-    borderTop: "1px solid #dde",
-    backgroundColor: "#fff",
+    borderTop: '1px solid #dde',
+    backgroundColor: '#fff',
   },
   input: {
     flex: 1,
-    backgroundColor: "#f0f2f8",
+    backgroundColor: '#f0f2f8',
     borderRadius: 20,
-    border: "none",
-    padding: "8px 16px",
+    border: 'none',
+    padding: '8px 16px',
     fontSize: 14,
-    outline: "none",
+    outline: 'none',
   },
   sendBtn: {
     backgroundColor: ACCENT,
     borderRadius: 20,
-    border: "none",
-    padding: "8px 20px",
-    color: "#fff",
-    fontWeight: "bold",
-    cursor: "pointer",
-  },
-  msgMenuWrap: {
-    position: "relative",
-    alignSelf: "flex-start",
-    marginTop: 6,
-    marginRight: 6,
-    flexShrink: 0,
-  },
-  msgMenuBtn: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 28,
-    height: 28,
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#444",
-    cursor: "pointer",
-    userSelect: "none",
-    borderRadius: 6,
-    backgroundColor: "#e8eaf6",
-    border: "1px solid #c5c8e8",
-  },
-  msgMenu: {
-    position: "absolute",
-    top: 32,
-    right: 0,
-    zIndex: 50,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-    minWidth: 120,
-    overflow: "hidden",
-  },
-  msgMenuItem: {
-    padding: "9px 14px",
-    fontSize: 13,
-    cursor: "pointer",
-    borderBottom: "1px solid #f0f0f0",
-    color: "#222",
-    whiteSpace: "nowrap",
-  },
-  msgMenuItemDanger: {
-    color: "#d93025",
-  },
-  editInput: {
-    width: "100%",
-    minWidth: 180,
-    padding: "6px 8px",
-    borderRadius: 6,
-    border: "1px solid #ccc",
-    fontSize: 14,
-    resize: "none",
-    outline: "none",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-  },
-  editActions: {
-    display: "flex",
-    gap: 6,
-    marginTop: 6,
-    justifyContent: "flex-end",
-  },
-  editCancelBtn: {
-    padding: "4px 12px",
-    borderRadius: 6,
-    border: "1px solid #ccc",
-    background: "#fff",
-    fontSize: 12,
-    cursor: "pointer",
-    color: "#555",
-  },
-  editSaveBtn: {
-    padding: "4px 12px",
-    borderRadius: 6,
-    border: "none",
-    background: ACCENT,
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "bold",
-    cursor: "pointer",
+    border: 'none',
+    padding: '8px 20px',
+    color: '#fff',
+    fontWeight: 'bold',
+    cursor: 'pointer',
   },
 };
