@@ -8,7 +8,7 @@ import NewChatModal from '../components/NewChatModal';
 
 export default function Layout({ children }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [activeChat, setActiveChat] = useState(null);
@@ -91,9 +91,7 @@ export default function Layout({ children }) {
         <button style={s.iconBtn} onClick={() => setShowNewChat(true)}>＋</button>
         <button style={s.iconBtn}>⚙</button>
         <div style={{ flex: 1 }} />
-        <button style={s.iconBtn} onClick={() => signOut(auth)}>
-          ⇥
-        </button>
+        <button style={s.iconBtn} onClick={() => signOut(auth)}>⇥</button>
       </div>
 
       {/* Chat list */}
@@ -102,7 +100,7 @@ export default function Layout({ children }) {
           <input
             style={s.searchInput}
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={e => handleSearch(e.target.value)}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
             placeholder="Search"
@@ -112,13 +110,8 @@ export default function Layout({ children }) {
 
         {searchFocused && searchResults.length > 0 && (
           <div style={s.dropdown}>
-            {searchResults.map((c) => (
-              <div
-                key={c.id}
-                style={s.dropItem}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => openChat(c)}
-              >
+            {searchResults.map(c => (
+              <div key={c.id} style={s.dropItem} onClick={() => openChat(c)}>
                 <span style={s.dropAvatar}>{c.avatar}</span>
                 <div>
                   <p style={s.dropName}>{c.displayName}</p>
@@ -193,14 +186,9 @@ export default function Layout({ children }) {
   );
 }
 
-const DARK = "#1a2744";
-
-const PRESENCE_COLORS = {
-  online:  '#5a9e5a',
-  busy:    '#d93025',
-  away:    '#f5a623',
-  offline: '#aaaaaa',
-};
+const ACCENT = '#7b7fd4';
+const GREEN = '#5a9e5a';
+const DARK = '#1a2744';
 
 const s = {
   root: {
@@ -242,132 +230,94 @@ const s = {
   },
   chatList: {
     width: 300,
-    backgroundColor: "#dde4f0",
+    backgroundColor: '#dde4f0',
     paddingTop: 12,
-    overflowY: "auto",
-    position: "relative",
+    overflowY: 'auto',
+    position: 'relative',
   },
   searchBar: {
-    display: "flex",
-    alignItems: "center",
-    backgroundColor: "#b0bccc",
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#b0bccc',
     borderRadius: 20,
-    margin: "0 12px 8px",
-    padding: "0 12px",
+    margin: '0 12px 8px',
+    padding: '0 12px',
     height: 38,
   },
   searchInput: {
     flex: 1,
-    background: "none",
-    border: "none",
-    color: "#fff",
+    background: 'none',
+    border: 'none',
+    color: '#fff',
     fontSize: 14,
-    outline: "none",
+    outline: 'none',
   },
   dropdown: {
-    position: "absolute",
+    position: 'absolute',
     top: 54,
     left: 12,
     right: 12,
     zIndex: 99,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderRadius: 8,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
   },
   dropItem: {
-    display: "flex",
-    alignItems: "center",
+    display: 'flex',
+    alignItems: 'center',
     padding: 10,
     gap: 10,
-    borderBottom: "1px solid #eee",
-    cursor: "pointer",
+    borderBottom: '1px solid #eee',
+    cursor: 'pointer',
   },
   dropAvatar: {
     fontSize: 24,
   },
   dropName: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
     fontSize: 14,
     margin: 0,
   },
   dropRole: {
-    color: "#888",
+    color: '#888',
     fontSize: 12,
     margin: 0,
   },
   chatRow: {
-    display: "flex",
-    alignItems: "center",
+    display: 'flex',
+    alignItems: 'center',
     padding: 12,
-    borderBottom: "1px solid #c8d0e0",
-    cursor: "pointer",
+    borderBottom: '1px solid #c8d0e0',
+    cursor: 'pointer',
   },
   chatRowActive: {
-    backgroundColor: "#c0cadf",
-  },
-  avatarWrap: {
-    position: 'relative',
-    marginRight: 10,
-    flexShrink: 0,
+    backgroundColor: '#c0cadf',
   },
   avatar: {
     fontSize: 30,
-  },
-  presenceDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    border: '2px solid #dde4f0',
+    marginRight: 10,
   },
   chatInfo: {
     flex: 1,
   },
   chatName: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
     fontSize: 14,
     color: DARK,
     margin: 0,
   },
   chatPreview: {
-    color: "#555",
+    color: '#555',
     fontSize: 12,
     marginTop: 2,
     margin: 0,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   dots: {
-    color: "#888",
-    fontSize: 14,
-    padding: "4px 6px",
-    borderRadius: 4,
-    cursor: "pointer",
-    userSelect: "none",
-  },
-  chatMenu: {
-    position: "absolute",
-    right: 8,
-    top: 36,
-    zIndex: 100,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-    minWidth: 160,
-    overflow: "hidden",
-  },
-  chatMenuItem: {
-    padding: "10px 16px",
-    fontSize: 13,
-    cursor: "pointer",
-    borderBottom: "1px solid #f0f0f0",
-    color: "#222",
-  },
-  chatMenuItemDanger: {
-    color: "#d93025",
+    color: '#888',
+    fontSize: 10,
   },
   main: {
     flex: 1,

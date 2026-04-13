@@ -29,7 +29,7 @@ export default function LoginPage() {
       }
 
       router.push('/home');
-    } catch {
+    } catch (error) {
       setError('Invalid credentials. Please try again or contact IT support.');
     } finally {
       setLoading(false);
@@ -43,30 +43,32 @@ export default function LoginPage() {
         <div>
         <img src={logo.src} width={100}/>
         </div>
-        <form onSubmit={handleLogin} style={{ width: '100%' }}>
-          <div style={s.field}>
-            <label style={s.label}>Employee ID/Email</label>
-            <input
-              style={s.input}
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              autoCapitalize="none"
-            />
-          </div>
-          <div style={s.field}>
-            <label style={s.label}>Password</label>
-            <input
-              style={s.input}
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
-          </div>
-          {error && <p style={s.error}>{error}</p>}
-          <button type="submit" style={s.btn} disabled={loading}>
-            {loading ? 'Logging in...' : 'LOGIN'}
-          </button>
-        </form>
+
+        <div style={s.field}>
+          <label style={s.label}>Employee ID/Email</label>
+          <input
+            style={s.input}
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            autoCapitalize="none"
+          />
+        </div>
+
+        <div style={s.field}>
+          <label style={s.label}>Password</label>
+          <input
+            style={s.input}
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
+        </div>
+
+        {error && <p style={s.error}>{error}</p>}
+
+        <button style={s.btn} onClick={handleLogin} disabled={loading}>
+          {loading ? 'Logging in...' : 'LOGIN'}
+        </button>
       </div>
     </div>
   );
@@ -103,7 +105,6 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 40,
     border: '2px solid #fff',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 30
