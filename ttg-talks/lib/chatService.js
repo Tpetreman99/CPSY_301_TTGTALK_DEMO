@@ -3,24 +3,15 @@ import {
   setDoc,
   collection,
   doc,
-  deleteDoc,
   getDoc,
   getDocs,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
-  arrayUnion,
-  arrayRemove,
-  writeBatch,
   where,
-  onSnapshot,
+  onSnapshot
 } from 'firebase/firestore';
-import {
-  updatePassword,
-  reauthenticateWithCredential,
-  EmailAuthProvider,
-} from 'firebase/auth';
 import { db } from './firebaseConfig';
 
 export async function getAllUsers() {
@@ -48,23 +39,14 @@ export async function createOrGetDirectConversation(currentUserId, otherUserId) 
 
   const q = query(
     collection(db, 'conversations'),
-    where('memberIds', 'array-contains', currentUserId)
+    where('type', '==', 'direct'),
+    where('memberIds', '==', memberIds)
   );
 
   const snapshot = await getDocs(q);
-  const existing = snapshot.docs.find(docSnap => {
-    const data = docSnap.data();
-    return data.type === 'direct' && data.memberIds.includes(otherUserId);
-  });
 
-  if (existing) {
-    // If the current user had hidden this conversation, restore it now
-    if (existing.data().hiddenFor?.includes(currentUserId)) {
-      await updateDoc(doc(db, 'conversations', existing.id), {
-        hiddenFor: arrayRemove(currentUserId),
-      });
-    }
-    return existing.id;
+  if (!snapshot.empty) {
+    return snapshot.docs[0].id;
   }
 
   const fallbackGroup = snapshot.docs.find((docSnap) => {
@@ -172,25 +154,6 @@ export async function getConversationsByUserId(userId) {
   return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-export function subscribeToMessages(conversationId, callback) {
-  // Single-field where clause only — avoids requiring a composite Firestore index.
-  // Messages are sorted client-side by createdAt.
-  const q = query(
-    collection(db, 'messages'),
-    where('conversationId', '==', conversationId)
-  );
-  return onSnapshot(q, (snapshot) => {
-    const msgs = snapshot.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => {
-        if (!a.createdAt) return 1;
-        if (!b.createdAt) return -1;
-        return a.createdAt.toMillis() - b.createdAt.toMillis();
-      });
-    callback(msgs);
-  });
-}
-
 // keeps mesage previews up to date without needing to refresh the page, this will also help with
 // keeping the  most recent messages at the top
 export function subscribeToConversationPreviews(userId, callback) {
@@ -214,8 +177,6 @@ export function subscribeToConversationPreviews(userId, callback) {
           conversationId: document.id,
           type: 'group',
           memberIds: data.memberIds,
-          createdBy: data.createdBy,
-          admins: data.admins || [],
           lastMessageText: data.lastMessageText || '',
           lastMessageAt: data.lastMessageAt,
         });
