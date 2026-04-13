@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { auth, db } from "../../lib/firebaseConfig";
 import Layout from "../../components/Layout";
 import { useSettings } from "../../lib/SettingsContext";
@@ -29,6 +29,8 @@ export default function ConversationPage() {
   const [menuMsgId, setMenuMsgId] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
 
   const { enterToSend } = useSettings();
   const bottomRef = useRef(null);
@@ -45,7 +47,6 @@ export default function ConversationPage() {
     const unsubscribe = subscribeToUsers((allUsers) => {
       setUsers(allUsers);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -53,7 +54,6 @@ export default function ConversationPage() {
     if (!chatId) return;
     const unsub = onSnapshot(doc(db, "conversations", chatId), (snap) => {
       if (!snap.exists()) return;
-
       const data = snap.data();
       setConversation({
         id: snap.id,
@@ -132,10 +132,26 @@ export default function ConversationPage() {
     }
   };
 
-  const otherMembers = conversation?.memberIds?.filter((id) => id !== user?.uid) ?? [];
-  const headerName = otherMembers
-    .map((id) => users.find((u) => u.id === id)?.displayName ?? "...")
-    .join(", ") || "Chat";
+  const handleSaveGroupName = async () => {
+    try {
+      await updateDoc(doc(db, "conversations", chatId), {
+        groupName: nameInput.trim(),
+      });
+      setEditingName(false);
+    } catch (err) {
+      alert("Could not update group name: " + err.message);
+    }
+  };
+
+  const otherMembers =
+    conversation?.memberIds?.filter((id) => id !== user?.uid) ?? [];
+
+  const headerName = conversation?.groupName
+    ? conversation.groupName
+    : otherMembers
+        .map((id) => users.find((u) => u.id === id)?.displayName ?? "...")
+        .join(", ") || "Chat";
+
   const directRecipient =
     otherMembers.length === 1
       ? users.find((u) => u.id === otherMembers[0]) || null
@@ -160,7 +176,9 @@ export default function ConversationPage() {
       <div style={s.root}>
         <div style={s.header} onClick={() => setHeaderOpen((o) => !o)}>
           <div style={s.headerInner}>
-            <span style={s.avatar}>{isGroup ? "👥" : directRecipient?.avatar || "👤"}</span>
+            <span style={s.avatar}>
+              {isGroup ? "👥" : directRecipient?.avatar || "👤"}
+            </span>
             <p style={s.name}>{headerName}</p>
           </div>
           <span style={s.chevron}>{headerOpen ? "▲" : "▼"}</span>
@@ -168,6 +186,66 @@ export default function ConversationPage() {
 
         {headerOpen && conversation && (
           <div style={s.panel}>
+
+            {/* Group name section */}
+            {isGroup && (
+              <>
+                <p style={s.panelSection}>Group name</p>
+                {editingName ? (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      style={s.addSearch}
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Enter group name..."
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveGroupName();
+                        if (e.key === "Escape") setEditingName(false);
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      style={s.editSaveBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSaveGroupName();
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      style={s.editCancelBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingName(false);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    style={{ ...s.addRow, justifyContent: "space-between" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNameInput(conversation.groupName || "");
+                      setEditingName(true);
+                    }}
+                  >
+                    <p style={{
+                      margin: 0,
+                      fontSize: 14,
+                      color: conversation.groupName ? DARK : "#aaa",
+                    }}>
+                      {conversation.groupName || "No name set — click to add one"}
+                    </p>
+                    <span style={{ color: ACCENT, fontSize: 13 }}>✏️</span>
+                  </div>
+                )}
+              </>
+            )}
+
             <p style={s.panelSection}>Members</p>
             {conversation.memberIds.map((memberId) => {
               const member = users.find((u) => u.id === memberId);
@@ -237,14 +315,23 @@ export default function ConversationPage() {
           </div>
         )}
 
-        <div style={s.msgList} onClick={() => { setHeaderOpen(false); setMenuMsgId(null); }}>
+        <div
+          style={s.msgList}
+          onClick={() => {
+            setHeaderOpen(false);
+            setMenuMsgId(null);
+          }}
+        >
           {messages.map((msg) => {
             const isMe = msg.senderId === user?.uid;
             const sender = users.find((u) => u.id === msg.senderId);
             const isEditing = editingMsgId === msg.id;
             const menuOpen = menuMsgId === msg.id;
             return (
-              <div key={msg.id} style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}>
+              <div
+                key={msg.id}
+                style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}
+              >
                 {isMe && !isEditing && (
                   <div style={s.msgMenuWrap}>
                     <span
@@ -258,10 +345,22 @@ export default function ConversationPage() {
                     </span>
                     {menuOpen && (
                       <div style={s.msgMenu}>
-                        <div style={s.msgMenuItem} onClick={(e) => { e.stopPropagation(); handleStartEdit(msg); }}>
+                        <div
+                          style={s.msgMenuItem}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(msg);
+                          }}
+                        >
                           ✏️  Edit
                         </div>
-                        <div style={{ ...s.msgMenuItem, ...s.msgMenuItemDanger }} onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}>
+                        <div
+                          style={{ ...s.msgMenuItem, ...s.msgMenuItemDanger }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMessage(msg.id);
+                          }}
+                        >
                           🗑️  Delete
                         </div>
                       </div>
@@ -269,7 +368,9 @@ export default function ConversationPage() {
                   </div>
                 )}
 
-                <div style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}>
+                <div
+                  style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}
+                >
                   {isGroup && !isMe && (
                     <p style={s.senderName}>{sender?.displayName ?? ""}</p>
                   )}
@@ -293,8 +394,18 @@ export default function ConversationPage() {
                         onClick={(e) => e.stopPropagation()}
                       />
                       <div style={s.editActions}>
-                        <button style={s.editCancelBtn} onClick={() => { setEditingMsgId(null); setEditText(""); }}>Cancel</button>
-                        <button style={s.editSaveBtn} onClick={handleSaveEdit}>Save</button>
+                        <button
+                          style={s.editCancelBtn}
+                          onClick={() => {
+                            setEditingMsgId(null);
+                            setEditText("");
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button style={s.editSaveBtn} onClick={handleSaveEdit}>
+                          Save
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -303,7 +414,12 @@ export default function ConversationPage() {
                     </p>
                   )}
                   <p style={s.msgTime}>
-                    {msg.createdAt?.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {msg.createdAt
+                      ?.toDate()
+                      .toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     {msg.editedAt ? "  · edited" : ""}
                   </p>
                 </div>

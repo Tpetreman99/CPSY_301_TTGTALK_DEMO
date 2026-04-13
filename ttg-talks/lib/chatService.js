@@ -58,7 +58,6 @@ export async function createOrGetDirectConversation(currentUserId, otherUserId) 
   });
 
   if (existing) {
-    // If the current user had hidden this conversation, restore it now
     if (existing.data().hiddenFor?.includes(currentUserId)) {
       await updateDoc(doc(db, 'conversations', existing.id), {
         hiddenFor: arrayRemove(currentUserId),
@@ -162,7 +161,7 @@ export async function getUserById(userId) {
   };
 }
 
-// get most recent message from user ID 
+// get most recent message from user ID
 export async function getConversationsByUserId(userId) {
   const q = query(
     collection(db, 'conversations'),
@@ -173,8 +172,6 @@ export async function getConversationsByUserId(userId) {
 }
 
 export function subscribeToMessages(conversationId, callback) {
-  // Single-field where clause only — avoids requiring a composite Firestore index.
-  // Messages are sorted client-side by createdAt.
   const q = query(
     collection(db, 'messages'),
     where('conversationId', '==', conversationId)
@@ -191,8 +188,7 @@ export function subscribeToMessages(conversationId, callback) {
   });
 }
 
-// keeps mesage previews up to date without needing to refresh the page, this will also help with
-// keeping the  most recent messages at the top
+// keeps message previews up to date without needing to refresh the page
 export function subscribeToConversationPreviews(userId, callback) {
   const q = query(
     collection(db, 'conversations'),
@@ -216,6 +212,7 @@ export function subscribeToConversationPreviews(userId, callback) {
           memberIds: data.memberIds,
           createdBy: data.createdBy,
           admins: data.admins || [],
+          groupName: data.groupName || '',
           lastMessageText: data.lastMessageText || '',
           lastMessageAt: data.lastMessageAt,
         });
@@ -242,12 +239,10 @@ export function subscribeToConversationPreviews(userId, callback) {
   });
 }
 
-
 // group chat creation
 export async function createGroupConversation(memberIds, createdBy) {
   const sortedIds = [...memberIds].sort();
 
-  // create a deterministic document ID from the member IDs
   const conversationId = 'group_' + sortedIds.join('_');
 
   const docRef = doc(db, 'conversations', conversationId);
@@ -261,6 +256,7 @@ export async function createGroupConversation(memberIds, createdBy) {
     type: 'group',
     memberIds: sortedIds,
     createdBy,
+    groupName: '',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     lastMessageText: '',
@@ -307,7 +303,7 @@ export async function removeMemberFromConversation(conversationId, userId) {
   await updateDoc(convRef, updates);
 }
 
-// Temporarily hides the conversation for this user. History is restored when they reopen the chat.
+// Temporarily hides the conversation for this user.
 export async function hideConversation(conversationId, currentUserId) {
   await updateDoc(doc(db, 'conversations', conversationId), {
     hiddenFor: arrayUnion(currentUserId),
@@ -322,7 +318,6 @@ export async function deleteConversation(conversationId, currentUserId) {
 }
 
 // Hard-deletes a group conversation and all its messages for everyone.
-// Only admins/creators should call this.
 export async function deleteGroupConversation(conversationId) {
   const messagesSnap = await getDocs(query(
     collection(db, 'messages'),
@@ -334,7 +329,7 @@ export async function deleteGroupConversation(conversationId) {
   await batch.commit();
 }
 
-// Updates the current user's profile fields (displayName, avatar, status, presence).
+// Updates the current user's profile fields.
 export async function updateUserProfile(userId, updates) {
   await updateDoc(doc(db, 'users', userId), updates);
 }

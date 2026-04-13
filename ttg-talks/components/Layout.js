@@ -29,7 +29,6 @@ export default function Layout({ children }) {
     const unsubscribe = subscribeToUsers((allUsers) => {
       setUsers(allUsers);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -139,6 +138,21 @@ export default function Layout({ children }) {
     return text.length > 20 ? `${text.slice(0, 20)}...` : text;
   };
 
+  const getGroupDisplayName = (convo) => {
+    if (convo.groupName) return convo.groupName;
+    const memberNames = convo.memberIds
+      .filter((id) => id !== currentUser?.uid)
+      .map((id) => {
+        const user = users.find((u) => u.id === id);
+        return user ? user.displayName : "";
+      })
+      .filter(Boolean)
+      .join(", ");
+    return memberNames.length > 30
+      ? memberNames.slice(0, 30) + "..."
+      : memberNames || "Group chat";
+  };
+
   const currentUserProfile = users.find((u) => u.id === currentUser?.uid);
 
   return (
@@ -160,7 +174,8 @@ export default function Layout({ children }) {
                 style={{
                   ...s.presenceDot,
                   backgroundColor:
-                    PRESENCE_COLORS[currentUserProfile.presence] || PRESENCE_COLORS.offline,
+                    PRESENCE_COLORS[currentUserProfile.presence] ||
+                    PRESENCE_COLORS.offline,
                   border: "2px solid #1a2744",
                 }}
               />
@@ -206,7 +221,9 @@ export default function Layout({ children }) {
                   <span
                     style={{
                       ...s.presenceDot,
-                      backgroundColor: PRESENCE_COLORS[c.presence] || PRESENCE_COLORS.offline,
+                      backgroundColor:
+                        PRESENCE_COLORS[c.presence] ||
+                        PRESENCE_COLORS.offline,
                     }}
                   />
                 </div>
@@ -221,27 +238,26 @@ export default function Layout({ children }) {
 
         {conversations.map((convo) => {
           if (convo.type === "group") {
-            const memberNames = convo.memberIds
-              .filter((id) => id !== currentUser?.uid)
-              .map((id) => {
-                const user = users.find((u) => u.id === id);
-                return user ? user.displayName : "";
-              })
-              .filter(Boolean)
-              .join(", ");
-
             return (
               <div
                 key={convo.conversationId}
-                style={{ ...s.chatRow, position: "relative" }}
+                style={{
+                  ...s.chatRow,
+                  position: "relative",
+                  ...(router.query.id === convo.conversationId
+                    ? s.chatRowActive
+                    : {}),
+                }}
                 onClick={() =>
                   router.push(`/conversation/${convo.conversationId}`)
                 }
               >
-                <span style={s.avatar}>👥</span>
+                <span style={{ ...s.avatar, marginRight: 10 }}>👥</span>
                 <div style={s.chatInfo}>
-                  <p style={s.chatName}>{memberNames || "Group chat"}</p>
-                  <p style={s.chatPreview}>{truncateMessageText(convo.lastMessageText)}</p>
+                  <p style={s.chatName}>{getGroupDisplayName(convo)}</p>
+                  <p style={s.chatPreview}>
+                    {truncateMessageText(convo.lastMessageText)}
+                  </p>
                 </div>
                 <span
                   style={s.dots}
@@ -308,7 +324,9 @@ export default function Layout({ children }) {
               style={{
                 ...s.chatRow,
                 position: "relative",
-                ...(activeChat === contact.id ? s.chatRowActive : {}),
+                ...(router.query.id === convo.conversationId
+                  ? s.chatRowActive
+                  : {}),
               }}
               onClick={() => openChat(contact)}
             >
@@ -317,7 +335,9 @@ export default function Layout({ children }) {
                 <span
                   style={{
                     ...s.presenceDot,
-                    backgroundColor: PRESENCE_COLORS[contact.presence] || PRESENCE_COLORS.offline,
+                    backgroundColor:
+                      PRESENCE_COLORS[contact.presence] ||
+                      PRESENCE_COLORS.offline,
                   }}
                 />
               </div>

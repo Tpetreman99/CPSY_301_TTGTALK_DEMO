@@ -1,15 +1,13 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 
 const SettingsContext = createContext(null);
 
 export function SettingsProvider({ children }) {
-  const [enterToSend, setEnterToSendState] = useState(true);
-
-  // Load from localStorage on mount
-  useEffect(() => {
+  const [enterToSend, setEnterToSendState] = useState(() => {
+    if (typeof window === 'undefined') return true;
     const saved = localStorage.getItem('enterToSend');
-    if (saved !== null) setEnterToSendState(saved === 'true');
-  }, []);
+    return saved !== null ? saved === 'true' : true;
+  });
 
   const setEnterToSend = (value) => {
     setEnterToSendState(value);
