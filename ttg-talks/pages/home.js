@@ -1,45 +1,51 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "../lib/firebaseConfig";
-import Layout from "../components/Layout";
-import NewChatModal from "../components/NewChatModal";
-import { getAllUsers, createOrGetDirectConversation } from "../lib/chatService";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from '../lib/firebaseConfig';
+import { getAllUsers, createOrGetDirectConversation } from '../lib/chatService';
+import Layout from '../components/Layout';
+import NewChatModal from '../components/NewChatModal';
 
 export default function HomePage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [users, setUsers] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) {
-        router.push("/");
-      } else {
-        setUser(currentUser);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push('/');
+        return;
       }
+      setCurrentUser(user);
     });
     return unsub;
   }, []);
 
   useEffect(() => {
-    getAllUsers().then(setUsers);
+    async function loadUsers() {
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+    }
+    loadUsers();
   }, []);
 
   const openChat = async (contactOrId, type) => {
+    if (!currentUser) return;
+
     try {
       let conversationId;
-      if (type === "group") {
+
+      if (type === 'group') {
         conversationId = contactOrId;
       } else {
-        conversationId = await createOrGetDirectConversation(user.uid, contactOrId.id);
+        conversationId = await createOrGetDirectConversation(currentUser.uid, contactOrId.id);
       }
+
       router.push(`/conversation/${conversationId}`);
     } catch (err) {
-      console.error("Failed to open chat", err);
-      alert("Could not open chat: " + err.message);
+      console.error('Failed to open chat', err);
     }
   };
 
@@ -71,27 +77,10 @@ export default function HomePage() {
         </div>
       </div>
 
-      {showLogoutConfirm && (
-        <div style={s.overlay} onClick={() => setShowLogoutConfirm(false)}>
-          <div style={s.confirmModal} onClick={(e) => e.stopPropagation()}>
-            <h3 style={s.confirmTitle}>Log out</h3>
-            <p style={s.confirmText}>Are you sure you want to log out?</p>
-            <div style={s.confirmActions}>
-              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>
-                Cancel
-              </button>
-              <button style={s.logoutBtn} onClick={() => signOut(auth)}>
-                Log out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showNewChat && (
         <NewChatModal
           users={users}
-          currentUser={user}
+          currentUser={currentUser}
           onClose={() => setShowNewChat(false)}
           onOpenChat={openChat}
         />
