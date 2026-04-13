@@ -61,10 +61,19 @@ export default function Layout({ children }) {
   const handleSearch = (text) => {
     setSearch(text);
     if (text.length > 0) {
+      const normalizedText = text.toLowerCase();
       setSearchResults(
         users.filter((u) =>
-          u.displayName?.toLowerCase().includes(text.toLowerCase()),
-        ),
+          u.displayName?.toLowerCase().includes(normalizedText),
+        ).sort((a, b) => {
+          const aName = a.displayName?.toLowerCase() || "";
+          const bName = b.displayName?.toLowerCase() || "";
+          const aIndex = aName.indexOf(normalizedText);
+          const bIndex = bName.indexOf(normalizedText);
+
+          if (aIndex !== bIndex) return aIndex - bIndex;
+          return aName.localeCompare(bName);
+        }),
       );
     } else {
       setSearchResults([]);
@@ -153,19 +162,25 @@ export default function Layout({ children }) {
           </button>
         </div>
         {currentUserProfile && (
-          <div style={s.sidebarPresence}>
-            <div style={s.avatarWrap}>
-              <span style={s.avatar}>{currentUserProfile.avatar || "👤"}</span>
-              <span
-                style={{
-                  ...s.presenceDot,
-                  backgroundColor:
-                    PRESENCE_COLORS[currentUserProfile.presence] || PRESENCE_COLORS.offline,
-                  border: "2px solid #1a2744",
-                }}
-              />
+          <button
+            type="button"
+            style={s.sidebarPresenceBtn}
+            onClick={() => openChat(currentUserProfile)}
+          >
+            <div style={s.sidebarPresence}>
+              <div style={s.avatarWrap}>
+                <span style={s.avatar}>{currentUserProfile.avatar || "👤"}</span>
+                <span
+                  style={{
+                    ...s.presenceDot,
+                    backgroundColor:
+                      PRESENCE_COLORS[currentUserProfile.presence] || PRESENCE_COLORS.offline,
+                    border: "2px solid #1a2744",
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          </button>
         )}
         <button style={s.iconBtn} onClick={() => setShowNewChat(true)}>
           ＋
@@ -440,6 +455,12 @@ const s = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+  },
+  sidebarPresenceBtn: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    cursor: "pointer",
   },
   chatList: {
     width: 300,

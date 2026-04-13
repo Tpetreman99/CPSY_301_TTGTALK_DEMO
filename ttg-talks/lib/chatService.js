@@ -44,7 +44,10 @@ export function subscribeToUsers(callback) {
 }
 
 export async function createOrGetDirectConversation(currentUserId, otherUserId) {
-  const memberIds = [currentUserId, otherUserId].sort();
+  const memberIds =
+    currentUserId === otherUserId
+      ? [currentUserId]
+      : [currentUserId, otherUserId].sort();
 
   const q = query(
     collection(db, 'conversations'),
@@ -54,7 +57,11 @@ export async function createOrGetDirectConversation(currentUserId, otherUserId) 
   const snapshot = await getDocs(q);
   const existing = snapshot.docs.find(docSnap => {
     const data = docSnap.data();
-    return data.type === 'direct' && data.memberIds.includes(otherUserId);
+    return (
+      data.type === 'direct' &&
+      data.memberIds.includes(otherUserId) &&
+      data.memberIds.length === memberIds.length
+    );
   });
 
   if (existing) {
@@ -220,8 +227,7 @@ export function subscribeToConversationPreviews(userId, callback) {
           lastMessageAt: data.lastMessageAt,
         });
       } else {
-        const otherUserId = data.memberIds.find((id) => id !== userId);
-        if (!otherUserId) return;
+        const otherUserId = data.memberIds.find((id) => id !== userId) || userId;
         results.push({
           conversationId: document.id,
           type: 'direct',

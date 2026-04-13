@@ -133,11 +133,16 @@ export default function ConversationPage() {
   };
 
   const otherMembers = conversation?.memberIds?.filter((id) => id !== user?.uid) ?? [];
-  const headerName = otherMembers
-    .map((id) => users.find((u) => u.id === id)?.displayName ?? "...")
-    .join(", ") || "Chat";
+  const currentUserProfile = users.find((u) => u.id === user?.uid) || null;
+  const isSelfChat = conversation?.type === "direct" && otherMembers.length === 0;
+  const headerName = isSelfChat
+    ? "Personal notes"
+    : otherMembers.map((id) => users.find((u) => u.id === id)?.displayName ?? "...")
+        .join(", ") || "Chat";
   const directRecipient =
-    otherMembers.length === 1
+    isSelfChat
+      ? currentUserProfile
+      : otherMembers.length === 1
       ? users.find((u) => u.id === otherMembers[0]) || null
       : null;
 
@@ -460,6 +465,7 @@ const s = {
   },
   msgRow: {
     display: "flex",
+    width: "100%",
   },
   msgRowMe: {
     justifyContent: "flex-end",
