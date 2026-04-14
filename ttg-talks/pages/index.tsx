@@ -70,7 +70,7 @@ export default function LoginPage() {
 const s: Record<string, import('react').CSSProperties> = {
   bg: {
     minHeight: '100vh',
-    backgroundColor: '#e8e8e8',
+    backgroundColor: '#333',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -78,11 +78,12 @@ const s: Record<string, import('react').CSSProperties> = {
   card: {
     backgroundColor: '#1a2744',
     borderRadius: 12,
-    padding: 40,
-    width: 420,
+    padding: 60,
+    width: 620,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   company: {
     color: '#fff',
@@ -100,7 +101,7 @@ const s: Record<string, import('react').CSSProperties> = {
     display: 'block',
   },
   input: {
-    backgroundColor: '#8a9bbf',
+    backgroundColor: '#A1ACB3',
     borderRadius: 6,
     padding: 10,
     color: '#fff',
@@ -126,5 +127,6 @@ const s: Record<string, import('react').CSSProperties> = {
     letterSpacing: 1,
     cursor: 'pointer',
     width: '100%',
+    
   },
 };

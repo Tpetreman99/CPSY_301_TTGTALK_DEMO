@@ -119,7 +119,11 @@ export default function NewChatModal({ users, currentUser, onClose, onOpenChat }
   );
 }
 
-const DARK = '#1a2744';
+const ACCENT = "#737ACB";
+const GREEN = "#7BB863";
+const LPURPLE = "#ACB3F4";
+const DARK = "#333";
+const TEXT = "#FFF";
 
 const s = {
   overlay: {
@@ -132,39 +136,39 @@ const s = {
     zIndex: 200,
   },
   modal: {
-    backgroundColor: '#fff',
+    backgroundColor: DARK,
     borderRadius: 12,
     width: 400,
     maxHeight: '75vh',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+    boxShadow: '0 4px 16px #121616'
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '16px 20px 12px',
-    borderBottom: '1px solid #eee',
+    borderBottom: '2px solid #555',
   },
   title: {
     margin: 0,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: DARK,
+    color: TEXT,
   },
   closeBtn: {
     background: 'none',
     border: 'none',
     fontSize: 18,
     cursor: 'pointer',
-    color: '#888',
+    color: TEXT,
     lineHeight: 1,
   },
   tabs: {
     display: 'flex',
-    borderBottom: '1px solid #eee',
+    borderBottom: '2px solid #555',
   },
   tab: {
     flex: 1,
@@ -173,26 +177,28 @@ const s = {
     border: 'none',
     fontSize: 14,
     cursor: 'pointer',
-    color: '#888',
+    color: '#CBC8C8',
     fontWeight: '500',
   },
   tabActive: {
-    color: DARK,
-    borderBottom: `2px solid ${DARK}`,
+    color: TEXT,
+    borderBottom: `2px solid ${TEXT}`,
     fontWeight: 'bold',
   },
   search: {
     margin: '12px 16px',
     padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid #ddd',
-    fontSize: 14,
-    outline: 'none',
+    borderRadius: 20,
+    border: 'none',
+    fontSize: 16,
+    backgroundColor: "#CBC8C8",
+    boxShadow: '0 4px 16px #121616'
   },
   list: {
     flex: 1,
     overflowY: 'auto',
     padding: '0 8px',
+
   },
   empty: {
     textAlign: 'center',
@@ -204,12 +210,12 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     padding: '10px 12px',
-    borderRadius: 8,
     cursor: 'pointer',
     gap: 12,
+    borderBottom: '2px solid #555',
   },
   userRowSelected: {
-    backgroundColor: '#eef0fb',
+    backgroundColor: '#555',
   },
   avatar: {
     fontSize: 28,
@@ -221,9 +227,8 @@ const s = {
   },
   name: {
     margin: 0,
-    fontWeight: 'bold',
     fontSize: 14,
-    color: DARK,
+    color: TEXT,
   },
   role: {
     margin: 0,
@@ -234,12 +239,12 @@ const s = {
     width: 20,
     height: 20,
     borderRadius: 10,
-    border: '2px solid #7b7fd4',
+    border: `2px solid ${ACCENT}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 12,
-    color: '#7b7fd4',
+    color: ACCENT,
     fontWeight: 'bold',
   },
   footer: {
@@ -247,24 +252,24 @@ const s = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 20px',
-    borderTop: '1px solid #eee',
+    borderTop: '3px solid #555',
   },
   selectedCount: {
     margin: 0,
     fontSize: 13,
-    color: '#666',
+    color: '#CBC8C8',
   },
   createBtn: {
-    backgroundColor: DARK,
+    backgroundColor: ACCENT,
     color: '#fff',
     border: 'none',
     borderRadius: 8,
     padding: '8px 20px',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 16,
     cursor: 'pointer',
   },
   createBtnDisabled: {
+    color:DARK,
     backgroundColor: '#aaa',
     cursor: 'not-allowed',
   },
