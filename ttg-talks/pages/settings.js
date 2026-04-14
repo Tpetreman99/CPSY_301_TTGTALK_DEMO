@@ -265,9 +265,13 @@ export default function SettingsPage() {
   );
 }
 
-const DARK  = '#1a2744';
+const DARK = "#333";
+const TEXT = "#FFF";
 const ACCENT = '#7b7fd4';
-const GREEN  = '#5a9e5a';
+const GREEN = "#7BB863";
+const LPURPLE = "#ACB3F4";
+
+
 
 const s = {
   root: {
@@ -275,15 +279,15 @@ const s = {
     flexDirection: 'column',
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#f0f2f8',
+    backgroundColor: DARK,
   },
   header: {
     backgroundColor: GREEN,
-    padding: 16,
+    padding: 18,
   },
   headerTitle: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: 'bold',
     margin: 0,
   },
@@ -305,17 +309,16 @@ const s = {
     padding: '10px 20px',
     background: 'none',
     border: 'none',
-    fontSize: 15,
+    fontSize: 16,
     cursor: 'pointer',
-    color: '#888',
+    color: TEXT,
     fontWeight: '500',
     borderBottom: '2px solid transparent',
     marginBottom: -2,
   },
   tabActive: {
-    color: DARK,
+    color: LPURPLE,
     borderBottom: `2px solid ${ACCENT}`,
-    fontWeight: 'bold',
   },
   section: {
     display: 'flex',
@@ -323,24 +326,25 @@ const s = {
     gap: 6,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: DARK,
+    fontSize: 20,
+    color: LPURPLE,
     marginBottom: 12,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#555',
+    fontSize: 15,
+
+    color: '#CBC8C8',
     marginTop: 10,
   },
   input: {
     padding: '10px 14px',
-    borderRadius: 8,
+    borderRadius: 20,
     border: '1px solid #ddd',
-    fontSize: 14,
+    fontSize: 16,
     outline: 'none',
-    width: '100%',
+    width: '95%',
+    boxShadow: '0 4px 16px #121616'
+
   },
   presenceRow: {
     display: 'flex',
@@ -354,16 +358,18 @@ const s = {
     gap: 6,
     padding: '7px 14px',
     borderRadius: 20,
-    border: '1px solid #ddd',
+    border: '2px solid #ddd',
     cursor: 'pointer',
     fontSize: 13,
-    color: '#555',
+    color: '#CBC8C8',
+
   },
   presenceOptionActive: {
     borderColor: ACCENT,
-    backgroundColor: '#eef0fb',
-    color: DARK,
+    color: LPURPLE,
     fontWeight: 'bold',
+    boxShadow: '0 4px 16px #121616',
+    border: '2px solid #7b7fd4',
   },
   presenceDot: {
     width: 10,
@@ -378,7 +384,7 @@ const s = {
     marginTop: 4,
   },
   avatarOption: {
-    fontSize: 28,
+    fontSize: 30,
     padding: 6,
     borderRadius: 8,
     border: '2px solid transparent',
@@ -386,7 +392,8 @@ const s = {
   },
   avatarOptionActive: {
     border: `2px solid ${ACCENT}`,
-    backgroundColor: '#eef0fb',
+    boxShadow: '0 4px 16px #121616'
+
   },
   msg: {
     fontSize: 13,
@@ -409,41 +416,46 @@ const s = {
   },
   cancelBtn: {
     padding: '11px 28px',
-    backgroundColor: '#fff',
-    color: '#555',
-    border: '1px solid #ccc',
+    backgroundColor: "#d93025",
+    color: TEXT,
+    border: '1px solid #d93025',
     borderRadius: 8,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     cursor: 'pointer',
+    boxShadow: '0 4px 16px #121616'
+
   },
   saveBtn: {
     padding: '11px 28px',
-    backgroundColor: DARK,
+    backgroundColor: GREEN,
     color: '#fff',
-    border: 'none',
+    border: '2px solid #7BB863',
     borderRadius: 8,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     cursor: 'pointer',
+    boxShadow: '0 4px 16px #121616'
+
   },
   toggleRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '16px 0',
-    borderBottom: '1px solid #eee',
+    borderBottom: '1px solid #',
     gap: 16,
+
   },
   toggleLabel: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    color: DARK,
+    color: TEXT,
     marginBottom: 4,
   },
   toggleSub: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 14,
+    color: '#CBC8C8',
   },
   toggle: {
     width: 44,
@@ -454,6 +466,8 @@ const s = {
     cursor: 'pointer',
     flexShrink: 0,
     transition: 'background 0.2s',
+    boxShadow: '0 4px 16px #121616'
+
   },
   toggleOn: {
     backgroundColor: ACCENT,

@@ -413,7 +413,11 @@ export default function Layout({ children }) {
   );
 }
 
-const DARK = "#1a2744";
+const DARK = "#333";
+const TEXT = "#FFF";
+const FONT = "Arial";
+
+
 
 const PRESENCE_COLORS = {
   online: "#5a9e5a",
@@ -428,10 +432,10 @@ const s = {
     height: "100vh",
     width: "100%",
     overflow: "hidden",
-    backgroundColor: "#f0f2f8",
+    backgroundColor: DARK,
   },
   sidebar: {
-    width: 72,
+    width: 75,
     backgroundColor: DARK,
     display: "flex",
     flexDirection: "column",
@@ -462,8 +466,10 @@ const s = {
     justifyContent: "center",
   },
   chatList: {
-    width: 300,
-    backgroundColor: "#dde4f0",
+    border: "2px solid #fff",
+    color: "#fff",
+    width: 400,
+    backgroundColor: "#333",
     paddingTop: 12,
     overflowY: "auto",
     position: "relative",
@@ -471,36 +477,38 @@ const s = {
   searchBar: {
     display: "flex",
     alignItems: "center",
-    backgroundColor: "#b0bccc",
+    backgroundColor: "#CBC8C8",
     borderRadius: 20,
     margin: "0 12px 8px",
     padding: "0 12px",
     height: 38,
+    boxShadow: '0 4px 16px #121616'
   },
   searchInput: {
     flex: 1,
     background: "none",
     border: "none",
-    color: "#fff",
+    color: DARK,
     fontSize: 14,
     outline: "none",
   },
   dropdown: {
+    color: TEXT,
     position: "absolute",
     top: 54,
     left: 12,
     right: 12,
     zIndex: 99,
-    backgroundColor: "#fff",
+    backgroundColor: DARK,
     borderRadius: 8,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+     boxShadow: '0 4px 16px #121616',
   },
   dropItem: {
     display: "flex",
     alignItems: "center",
     padding: 10,
     gap: 10,
-    borderBottom: "1px solid #eee",
+    borderBottom: "1px solid #fff",
     cursor: "pointer",
   },
   dropAvatar: {
@@ -519,12 +527,12 @@ const s = {
   chatRow: {
     display: "flex",
     alignItems: "center",
-    padding: 12,
-    borderBottom: "1px solid #c8d0e0",
+    padding: 15,
+    borderBottom: "2px solid  #555",
     cursor: "pointer",
   },
   chatRowActive: {
-    backgroundColor: "#c0cadf",
+    backgroundColor: "#555",
   },
   avatarWrap: {
     position: "relative",
@@ -545,15 +553,18 @@ const s = {
   },
   chatInfo: {
     flex: 1,
+    borderWidth: 2,
+    bordercolor: TEXT,
   },
   chatName: {
+    fontFamily: FONT,
     fontWeight: "bold",
-    fontSize: 14,
-    color: DARK,
+    fontSize: 18,
+    color: TEXT,
     margin: 0,
   },
   chatPreview: {
-    color: "#555",
+    color:" #BEBFC5",
     fontSize: 12,
     marginTop: 2,
     margin: 0,
@@ -562,7 +573,7 @@ const s = {
     textOverflow: "ellipsis",
   },
   dots: {
-    color: "#888",
+    color: "#fff",
     fontSize: 14,
     padding: "4px 6px",
     borderRadius: 4,
@@ -570,27 +581,29 @@ const s = {
     userSelect: "none",
   },
   chatMenu: {
+    
     position: "absolute",
     right: 8,
     top: 36,
     zIndex: 100,
-    backgroundColor: "#fff",
+    backgroundColor: DARK,
     borderRadius: 8,
-    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+    boxShadow: "0 4px 16px #121616",
     minWidth: 160,
     overflow: "hidden",
   },
   chatMenuItem: {
+    color: TEXT,
     padding: "10px 16px",
     fontSize: 13,
     cursor: "pointer",
-    borderBottom: "1px solid #f0f0f0",
-    color: "#222",
+    borderBottom: "2px solid #555",
   },
   chatMenuItemDanger: {
     color: "#d93025",
   },
   main: {
+    fontFamily: TEXT,
     flex: 1,
     display: "flex",
     flexDirection: "column",

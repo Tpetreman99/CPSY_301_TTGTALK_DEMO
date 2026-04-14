@@ -100,20 +100,24 @@ export default function HomePage() {
   );
 }
 
-const ACCENT = "#7b7fd4";
-const GREEN = "#5a9e5a";
+
+const GREEN = "#7BB863";
+const LPURPLE = "#ACB3F4";
+
 
 const s = {
   header: {
     backgroundColor: GREEN,
-    padding: 16,
+    padding: 18
+    
   },
   headerTitle: {
     color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "600",
     margin: 0,
   },
+
   welcome: {
     flex: 1,
     display: "flex",
@@ -122,14 +126,14 @@ const s = {
     justifyContent: "center",
   },
   welcomeTitle: {
-    fontSize: 40,
-    color: ACCENT,
+    color: LPURPLE,
+    fontSize: 50,
     fontStyle: "italic",
     marginBottom: 8,
   },
   welcomeSub: {
-    fontSize: 20,
-    color: ACCENT,
+    color:LPURPLE,
+    fontSize: 30,
     marginBottom: 48,
   },
   actions: {
@@ -137,24 +141,25 @@ const s = {
     gap: 24,
   },
   actionBtn: {
-    width: 140,
-    height: 140,
-    backgroundColor: "#e8eaf6",
+    border: '2px solid #ACB3F4',
+    width: 200,
+    height: 200,
     borderRadius: 12,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    gap: 10,
     cursor: "pointer",
+    boxShadow: '0 4px 16px #121616',
   },
   actionIcon: {
-    fontSize: 40,
-    color: ACCENT,
+    fontSize: 100,
+    color: LPURPLE,
   },
   actionLabel: {
-    color: ACCENT,
-    fontSize: 16,
+    color:LPURPLE,
+    fontSize: 20,
   },
   overlay: {
     position: 'fixed',

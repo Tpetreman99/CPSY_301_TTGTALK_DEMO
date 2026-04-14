@@ -448,9 +448,13 @@ export default function ConversationPage() {
   );
 }
 
-const ACCENT = "#7b7fd4";
-const GREEN = "#5a9e5a";
-const DARK = "#1a2744";
+const ACCENT = "#737ACB";
+const GREEN = "#7BB863";
+const LPURPLE = "#ACB3F4";
+const DARK = "#333";
+const TEXT = "#FFF";
+const FONT = "Arial";
+
 
 const s = {
   root: {
@@ -464,14 +468,14 @@ const s = {
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: GREEN,
-    padding: "12px 16px",
+    padding: 18,
     cursor: "pointer",
     userSelect: "none",
   },
   headerInner: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap:20,
   },
   avatar: {
     fontSize: 22,
@@ -479,24 +483,25 @@ const s = {
   name: {
     color: "#fff",
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 28,
     margin: 0,
   },
   chevron: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 25,
   },
   panel: {
-    backgroundColor: "#fff",
+    backgroundColor: DARK,
     borderBottom: "1px solid #dde",
     padding: "12px 16px",
-    maxHeight: 340,
+    maxHeight: 400,
     overflowY: "auto",
+    boxShadow: '0 4px 16px #121616',
   },
   panelSection: {
     fontSize: 11,
     fontWeight: "bold",
-    color: "#888",
+    color: "#FFF",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     margin: "12px 0 6px",
@@ -505,8 +510,8 @@ const s = {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: "6px 0",
-    borderBottom: "1px solid #f0f0f0",
+    padding: 8,
+    borderBottom: "2px solid #555",
   },
   memberAvatar: {
     fontSize: 22,
@@ -519,8 +524,7 @@ const s = {
   memberName: {
     margin: 0,
     fontSize: 14,
-    fontWeight: "bold",
-    color: DARK,
+    color:" #FFF",
   },
   memberRole: {
     margin: 0,
@@ -528,30 +532,33 @@ const s = {
     color: "#888",
   },
   removeBtn: {
-    fontSize: 12,
-    color: "#d93025",
+    fontSize: 16,
+    color: "#ED2839",
     background: "none",
-    border: "1px solid #d93025",
+    border: "1px solid #ED2839",
     borderRadius: 6,
     padding: "3px 8px",
     cursor: "pointer",
+    boxShadow: '0 4px 16px #121616',
   },
   addSearch: {
+    backgroundColor: "#CBC8C8",
     width: "100%",
     padding: "7px 12px",
-    borderRadius: 8,
-    border: "1px solid #ddd",
-    fontSize: 14,
+    borderRadius: 20,
+    border: "1px solid #CBC8C8",
+    fontSize: 16,
     outline: "none",
     boxSizing: "border-box",
+    boxShadow: '0 4px 16px #121616'
   },
   addList: {
-    marginTop: 6,
+    marginTop: 6, 
   },
   noResults: {
-    color: "#aaa",
-    fontSize: 13,
-    margin: "8px 0",
+    paddingTop:6,
+    color: TEXT,
+    fontSize: 16,
   },
   addRow: {
     display: "flex",
@@ -562,7 +569,7 @@ const s = {
     cursor: "pointer",
   },
   addIcon: {
-    fontSize: 18,
+    fontSize: 20,
     color: ACCENT,
     fontWeight: "bold",
   },
@@ -582,59 +589,60 @@ const s = {
   },
   bubble: {
     maxWidth: "65%",
-    borderRadius: 12,
+    borderRadius: 18,
     padding: 10,
   },
   bubbleThem: {
-    backgroundColor: "#fff",
+    backgroundColor: GREEN,
   },
   bubbleMe: {
     backgroundColor: ACCENT,
   },
   senderName: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "bold",
-    color: ACCENT,
-    margin: "0 0 3px",
+    color: TEXT,
+    margin: "0 0 7px",
   },
   msgText: {
-    color: DARK,
-    fontSize: 14,
+    color: TEXT,
+    fontSize: 16,
     margin: 0,
   },
   msgTextMe: {
-    color: "#fff",
+    color: TEXT,
   },
   msgTime: {
     fontSize: 10,
-    color: "#999",
+    color: TEXT,
     marginTop: 4,
     textAlign: "right",
   },
   inputRow: {
     display: "flex",
-    padding: 12,
+    padding: 16,
     gap: 8,
-    borderTop: "1px solid #dde",
-    backgroundColor: "#fff",
+    backgroundColor:DARK,
   },
   input: {
     flex: 1,
-    backgroundColor: "#f0f2f8",
+    backgroundColor: "#CBC8C8",
     borderRadius: 20,
     border: "none",
     padding: "8px 16px",
-    fontSize: 14,
+    fontSize: 16,
     outline: "none",
+    boxShadow: '0 4px 16px #121616'
   },
   sendBtn: {
     backgroundColor: ACCENT,
     borderRadius: 20,
+    fontSize: 16,
     border: "none",
     padding: "8px 20px",
     color: "#fff",
-    fontWeight: "bold",
     cursor: "pointer",
+    boxShadow: '0 4px 16px #121616'
   },
   msgMenuWrap: {
     position: "relative",
@@ -649,23 +657,22 @@ const s = {
     justifyContent: "center",
     width: 28,
     height: 28,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "bold",
-    color: "#444",
+    color: LPURPLE,
     cursor: "pointer",
     userSelect: "none",
     borderRadius: 6,
-    backgroundColor: "#e8eaf6",
-    border: "1px solid #c5c8e8",
+    border: "1px solid #ACB3F4",
   },
   msgMenu: {
     position: "absolute",
     top: 32,
     right: 0,
     zIndex: 50,
-    backgroundColor: "#fff",
+    backgroundColor:DARK,
     borderRadius: 8,
-    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+    boxShadow: '0 4px 16px #121616',
     minWidth: 120,
     overflow: "hidden",
   },
@@ -673,8 +680,8 @@ const s = {
     padding: "9px 14px",
     fontSize: 13,
     cursor: "pointer",
-    borderBottom: "1px solid #f0f0f0",
-    color: "#222",
+    borderBottom: "2px solid #555",
+    color: TEXT,
     whiteSpace: "nowrap",
   },
   msgMenuItemDanger: {
