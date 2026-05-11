@@ -26,7 +26,7 @@ export default function ConversationPage() {
   const [users, setUsers] = useState([]);
   const [headerOpen, setHeaderOpen] = useState(false);
   const [addSearch, setAddSearch] = useState("");
-  const [menuMsgId, setMenuMsgId] = useState(null);
+  const [menuState, setMenuState] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState("");
 
@@ -77,6 +77,13 @@ export default function ConversationPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (!menuState) return;
+    const closeMenu = () => setMenuState(null);
+    document.addEventListener("click", closeMenu);
+    return () => document.removeEventListener("click", closeMenu);
+  }, [menuState]);
+
   const send = async () => {
     if (!input.trim() || !user || !chatId) return;
     try {
@@ -107,7 +114,7 @@ export default function ConversationPage() {
 
   const handleDeleteMessage = async (msgId) => {
     if (!confirm("Delete this message?")) return;
-    setMenuMsgId(null);
+    setMenuState(null);
     try {
       await deleteMessage(msgId);
     } catch (err) {
@@ -116,7 +123,7 @@ export default function ConversationPage() {
   };
 
   const handleStartEdit = (msg) => {
-    setMenuMsgId(null);
+    setMenuState(null);
     setEditingMsgId(msg.id);
     setEditText(msg.text);
   };
@@ -143,8 +150,8 @@ export default function ConversationPage() {
     isSelfChat
       ? currentUserProfile
       : otherMembers.length === 1
-      ? users.find((u) => u.id === otherMembers[0]) || null
-      : null;
+        ? users.find((u) => u.id === otherMembers[0]) || null
+        : null;
 
   const isGroup = conversation?.type === "group";
   const isAdmin =
@@ -242,39 +249,31 @@ export default function ConversationPage() {
           </div>
         )}
 
-        <div style={s.msgList} onClick={() => { setHeaderOpen(false); setMenuMsgId(null); }}>
+        <div style={s.msgList} onClick={() => { setHeaderOpen(false); setMenuState(null); }}>
           {messages.map((msg) => {
             const isMe = msg.senderId === user?.uid;
             const sender = users.find((u) => u.id === msg.senderId);
             const isEditing = editingMsgId === msg.id;
-            const menuOpen = menuMsgId === msg.id;
+            const menuOpen = menuState?.id === msg.id;
+
             return (
               <div key={msg.id} style={{ ...s.msgRow, ...(isMe ? s.msgRowMe : {}) }}>
-                {isMe && !isEditing && (
-                  <div style={s.msgMenuWrap}>
-                    <span
-                      style={s.msgMenuBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuMsgId(menuOpen ? null : msg.id);
-                      }}
-                    >
-                      ⋮
-                    </span>
-                    {menuOpen && (
-                      <div style={s.msgMenu}>
-                        <div style={s.msgMenuItem} onClick={(e) => { e.stopPropagation(); handleStartEdit(msg); }}>
-                          ✏️  Edit
-                        </div>
-                        <div style={{ ...s.msgMenuItem, ...s.msgMenuItemDanger }} onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}>
-                          🗑️  Delete
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}>
+                <div
+                  style={{ ...s.bubble, ...(isMe ? s.bubbleMe : s.bubbleThem) }}
+                  onContextMenu={
+                    isMe && !isEditing
+                      ? (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuState(
+                            menuOpen
+                              ? null
+                              : { id: msg.id, x: e.clientX, y: e.clientY }
+                          );
+                        }
+                      : undefined
+                  }
+                >
                   {isGroup && !isMe && (
                     <p style={s.senderName}>{sender?.displayName ?? ""}</p>
                   )}
@@ -298,8 +297,12 @@ export default function ConversationPage() {
                         onClick={(e) => e.stopPropagation()}
                       />
                       <div style={s.editActions}>
-                        <button style={s.editCancelBtn} onClick={() => { setEditingMsgId(null); setEditText(""); }}>Cancel</button>
-                        <button style={s.editSaveBtn} onClick={handleSaveEdit}>Save</button>
+                        <button style={s.editCancelBtn} onClick={() => { setEditingMsgId(null); setEditText(""); }}>
+                          Cancel
+                        </button>
+                        <button style={s.editSaveBtn} onClick={handleSaveEdit}>
+                          Save
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -312,6 +315,25 @@ export default function ConversationPage() {
                     {msg.editedAt ? "  · edited" : ""}
                   </p>
                 </div>
+
+                {menuOpen && (
+                  <div
+                    style={{
+                      ...s.msgMenu,
+                      position: "fixed",
+                      left: menuState.x,
+                      top: menuState.y,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={s.msgMenuItem} onClick={(e) => { e.stopPropagation(); handleStartEdit(msg); }}>
+                      ✏️  Edit
+                    </div>
+                    <div style={{ ...s.msgMenuItem, ...s.msgMenuItemDanger }} onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}>
+                      🗑️  Delete
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -526,32 +548,8 @@ const s = {
     fontWeight: "bold",
     cursor: "pointer",
   },
-  msgMenuWrap: {
-    position: "relative",
-    alignSelf: "flex-start",
-    marginTop: 6,
-    marginRight: 6,
-    flexShrink: 0,
-  },
-  msgMenuBtn: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 28,
-    height: 28,
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#444",
-    cursor: "pointer",
-    userSelect: "none",
-    borderRadius: 6,
-    backgroundColor: "#e8eaf6",
-    border: "1px solid #c5c8e8",
-  },
   msgMenu: {
     position: "absolute",
-    top: 32,
-    right: 0,
     zIndex: 50,
     backgroundColor: "#fff",
     borderRadius: 8,
